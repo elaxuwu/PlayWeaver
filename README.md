@@ -1,2 +1,2 @@
 # Hackathon_LovHack
-for LovHack 2026
+this is a project for LovHack 2026!
