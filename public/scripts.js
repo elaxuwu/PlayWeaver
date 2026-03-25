@@ -96,6 +96,17 @@ function scrollChatToBottom() {
   }
 }
 
+function formatMessageContent(content) {
+  const escapedContent = String(content)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+  return escapedContent.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
+
 function createMessageElement(role, content, options = {}) {
   const row = document.createElement("div");
   row.className = `chat-message-row ${role === "user" ? "user" : "assistant"}`;
@@ -111,7 +122,7 @@ function createMessageElement(role, content, options = {}) {
   bubble.className = `chat-bubble whitespace-pre-wrap ${role === "user" ? "user" : "assistant"}${
     options.isThinking ? " thinking" : ""
   }`;
-  bubble.textContent = content;
+  bubble.innerHTML = formatMessageContent(content);
 
   wrap.append(meta, bubble);
   row.appendChild(wrap);

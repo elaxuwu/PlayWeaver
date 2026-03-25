@@ -213,6 +213,12 @@ body.is-loading .loading-shell {
   opacity: 0.78;
 }
 
+.chat-bubble strong {
+  color: #ffd36b;
+  font-size: 1.03em;
+  font-weight: 800;
+}
+
 #chat-messages::-webkit-scrollbar {
   width: 10px;
 }
