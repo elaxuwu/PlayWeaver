@@ -1,10 +1,11 @@
-const OpenAI = require("openai");
+const aiModelConfig = require("./aiModelConfig");
 
 const SYSTEM_PROMPT =
-  'You are an expert game designer. Your goal is to extract exactly 8 parameters from the user: gameName, genre, coreMechanic, artStyle, setting, playerCharacter, enemies, winCondition.\n\nIf you are missing ANY of these, respond with a friendly, conversational question to gather the missing info.\n\nIf you have ALL 8 parameters clearly defined, output ONLY a raw JSON object containing these 8 keys, plus a 9th key: "isComplete": true. Do not include markdown formatting or extra text.';
+  'You are an expert game designer. You must gather 8 parameters: gameName, genre, coreMechanic, artStyle, setting, playerCharacter, enemies, winCondition. CRITICAL: DO NOT ask for all of them at once. You must only ask for ONE missing parameter at a time in a brief, friendly, and conversational way. Wait for the user to answer before asking for the next one.\n\nIf you are missing ANY of these, respond with only one brief, friendly, conversational question for the next single missing parameter. Never ask for multiple missing parameters in the same reply.\n\nIf you have ALL 8 parameters clearly defined, output ONLY a raw JSON object containing these 8 keys, plus a 9th key: "isComplete": true. Do not include markdown formatting or extra text.';
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const client = new FeatherlessAIClient({
+  apiKey: process.env.FEATHERLESS_API_KEY,
+  baseURL: aiModelConfig.baseURL,
 });
 
 exports.handler = async (event) => {
@@ -20,8 +21,8 @@ exports.handler = async (event) => {
   }
 
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("Missing OPENAI_API_KEY");
+    if (!process.env.FEATHERLESS_API_KEY) {
+      throw new Error("Missing FEATHERLESS_API_KEY");
     }
 
     const { messageHistory } = JSON.parse(event.body || "{}");
@@ -45,7 +46,7 @@ exports.handler = async (event) => {
     ];
 
     const completion = await client.chat.completions.create({
-      model: "gpt-5.4-nano-2026-03-17",
+      model: aiModelConfig.modelName,
       messages,
     });
 
@@ -66,7 +67,7 @@ exports.handler = async (event) => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ error: "Something went wrong while calling OpenAI." }),
+      body: JSON.stringify({ error: "Something went wrong while calling Featherless AI." }),
     };
   }
 };

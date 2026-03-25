@@ -108,7 +108,7 @@ function createMessageElement(role, content, options = {}) {
   meta.textContent = role === "user" ? "You" : options.metaLabel || "PlayWeaver AI";
 
   const bubble = document.createElement("div");
-  bubble.className = `chat-bubble ${role === "user" ? "user" : "assistant"}${
+  bubble.className = `chat-bubble whitespace-pre-wrap ${role === "user" ? "user" : "assistant"}${
     options.isThinking ? " thinking" : ""
   }`;
   bubble.textContent = content;

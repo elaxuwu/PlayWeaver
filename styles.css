@@ -144,7 +144,11 @@ body.is-loading .loading-shell {
 }
 
 .weave-spinner {
-  animation: spin 1.1s linear infinite;
+  animation: spin 1s linear infinite;
+}
+
+.whitespace-pre-wrap {
+  white-space: pre-wrap;
 }
 
 .chat-message-row {
