@@ -26,7 +26,7 @@ export async function onRequestPost(context) {
     }
 
     const completion = await client.chat.completions.create({
-      model: "meta-llama/Meta-Llama-3.1-70B-Instruct",
+      model: "Qwen/Qwen2.5-7B-Instruct",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         ...messageHistory.map((message) => ({
