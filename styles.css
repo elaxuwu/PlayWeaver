@@ -147,6 +147,124 @@ body.is-loading .loading-shell {
   animation: spin 1.1s linear infinite;
 }
 
+.chat-message-row {
+  display: flex;
+}
+
+.chat-message-row.user {
+  justify-content: flex-end;
+}
+
+.chat-message-row.assistant {
+  justify-content: flex-start;
+}
+
+.chat-message-wrap {
+  max-width: min(42rem, 85%);
+}
+
+.chat-meta {
+  margin-bottom: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.chat-message-row.user .chat-meta {
+  text-align: right;
+}
+
+.chat-bubble {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1.35rem;
+  padding: 1rem 1.1rem;
+  line-height: 1.75;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.chat-bubble.user {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 122, 89, 0.16),
+    rgba(241, 71, 185, 0.14),
+    rgba(110, 203, 255, 0.1)
+  );
+  border-color: rgba(255, 184, 148, 0.2);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.chat-bubble.assistant {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.06)
+  );
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.chat-bubble.thinking {
+  opacity: 0.78;
+}
+
+#chat-messages::-webkit-scrollbar {
+  width: 10px;
+}
+
+#chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#chat-messages::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.14);
+  background-clip: padding-box;
+}
+
+.board-card {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.11),
+    rgba(255, 255, 255, 0.05)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.5rem;
+  padding: 1.25rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.board-card-featured {
+  background:
+    radial-gradient(circle at top right, rgba(110, 203, 255, 0.14), transparent 34%),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.13),
+      rgba(255, 255, 255, 0.05)
+    );
+}
+
+.board-label {
+  margin-bottom: 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.46);
+}
+
+.board-value {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.88);
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

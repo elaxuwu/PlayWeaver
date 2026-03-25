@@ -68,7 +68,7 @@
     <div class="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 pb-10 pt-5 sm:px-6 lg:px-8">
       <header class="sticky top-5 z-30">
         <nav
-          class="glass-panel glow-border mx-auto flex max-w-6xl items-center justify-between rounded-full px-4 py-3 shadow-glow-soft sm:px-6"
+          class="glass-panel glow-border shadow-glow-soft mx-auto flex max-w-6xl items-center justify-between rounded-full px-4 py-3 sm:px-6"
           aria-label="Primary"
         >
           <a href="#hero" class="flex items-center gap-3">
@@ -93,8 +93,6 @@
           class="relative flex min-h-[78vh] items-center justify-center py-16 sm:py-24"
         >
           <div class="mx-auto max-w-5xl text-center">
-            
-
             <h1
               class="font-display text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
             >
@@ -117,7 +115,7 @@
 
             <form
               id="idea-form"
-              class="glass-panel glow-border mx-auto mt-10 max-w-4xl rounded-[2rem] p-4 text-left shadow-glow sm:p-6"
+              class="glass-panel glow-border shadow-glow mx-auto mt-10 max-w-4xl rounded-[2rem] p-4 text-left sm:p-6"
             >
               <label
                 for="game-idea"
@@ -131,7 +129,7 @@
                   id="game-idea"
                   name="game-idea"
                   rows="7"
-                  class="w-full resize-none bg-transparent px-5 py-5 font-body text-base leading-7 text-white placeholder:text-white/35 focus:outline-none sm:px-6 sm:py-6 sm:text-lg"
+                  class="font-body w-full resize-none bg-transparent px-5 py-5 text-base leading-7 text-white placeholder:text-white/35 focus:outline-none sm:px-6 sm:py-6 sm:text-lg"
                   placeholder="Describe your dream game idea. 'A retro 8-bit platformer where you control a cat,' or 'A top-down cyberpunk rogue-like where you fight robots.'"
                 ></textarea>
               </div>
@@ -140,9 +138,15 @@
                 class="mt-4 flex flex-col gap-4 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div class="flex flex-wrap gap-2 text-xs text-white/55 sm:text-sm">
-                  <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Natural language input</span>
-                  <span class="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-emerald-200">Instant prototype preview</span>
-                  <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">No engine setup</span>
+                  <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                    Natural language input
+                  </span>
+                  <span class="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-emerald-200">
+                    Instant prototype preview
+                  </span>
+                  <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                    No engine setup
+                  </span>
                 </div>
 
                 <button
@@ -172,7 +176,7 @@
               class="mx-auto mt-8 grid max-w-4xl gap-3 text-left text-sm text-white/60 sm:grid-cols-3"
             >
               <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-                Prompt-first flow that gets people to the “Aha!” moment immediately.
+                Prompt-first flow that gets people to the "Aha!" moment immediately.
               </div>
               <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
                 Generated design docs and gameplay prototypes stay grounded in the same idea.
@@ -197,7 +201,7 @@
 
             <div class="grid gap-6 md:grid-cols-3">
               <article
-                class="glass-panel glow-border rounded-[1.75rem] p-6 shadow-glow-soft transition duration-300 hover:-translate-y-1"
+                class="glass-panel glow-border shadow-glow-soft rounded-[1.75rem] p-6 transition duration-300 hover:-translate-y-1"
               >
                 <div
                   class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-300/14 text-cyan-100"
@@ -221,13 +225,13 @@
                   1. Brainstorm with AI
                 </h3>
                 <p class="mt-4 text-base leading-7 text-white/68">
-                  Chat with high-speed & creative models to define your game's mechanisms,
-                  characters, and settings in <strong>natural language</strong>.
+                  Chat with high-speed and creative models to define your game's
+                  mechanisms, characters, and settings in <strong>natural language</strong>.
                 </p>
               </article>
 
               <article
-                class="glass-panel glow-border rounded-[1.75rem] p-6 shadow-glow-soft transition duration-300 hover:-translate-y-1"
+                class="glass-panel glow-border shadow-glow-soft rounded-[1.75rem] p-6 transition duration-300 hover:-translate-y-1"
               >
                 <div
                   class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-300/14 text-orange-100"
@@ -253,12 +257,13 @@
                   2. Automatic Visual Design Document
                 </h3>
                 <p class="mt-4 text-base leading-7 text-white/68">
-                  Watch as PlayWeaver instantly generate your <strong>Game Design Document</strong> whiteboard with sticky notes.
+                  Watch as PlayWeaver instantly generates your
+                  <strong>Game Design Document</strong> whiteboard with sticky notes.
                 </p>
               </article>
 
               <article
-                class="glass-panel glow-border rounded-[1.75rem] p-6 shadow-glow-soft transition duration-300 hover:-translate-y-1"
+                class="glass-panel glow-border shadow-glow-soft rounded-[1.75rem] p-6 transition duration-300 hover:-translate-y-1"
               >
                 <div
                   class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-300/14 text-emerald-100"
@@ -283,8 +288,8 @@
                   3. Instant Playable Prototype.
                 </h3>
                 <p class="mt-4 text-base leading-7 text-white/68">
-                  Weave robust code with OpenAI's Latest Models and play your single-file HTML5
-                  Canvas game in seconds. <strong>No engine required.</strong>
+                  Weave robust code with OpenAI's latest models and play your single-file
+                  HTML5 Canvas game in seconds. <strong>No engine required.</strong>
                 </p>
               </article>
             </div>
@@ -293,7 +298,7 @@
 
         <section id="partners" class="py-10 sm:py-16">
           <div
-            class="glass-panel glow-border mx-auto max-w-6xl rounded-[2rem] px-6 py-8 shadow-glow-soft sm:px-8 sm:py-10"
+            class="glass-panel glow-border shadow-glow-soft mx-auto max-w-6xl rounded-[2rem] px-6 py-8 sm:px-8 sm:py-10"
           >
             <div class="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
               <div>
@@ -364,7 +369,7 @@
       </main>
 
       <footer class="py-8 text-center text-sm text-white/45">
-        <p>© <span id="year"></span> PlayWeaver. Turn sparks into playable worlds.</p>
+        <p>&copy; <span id="year"></span> PlayWeaver. Turn sparks into playable worlds.</p>
       </footer>
     </div>
 
@@ -373,7 +378,7 @@
       aria-hidden="true"
     >
       <div
-        class="loading-shell glass-panel glow-border w-full max-w-xl rounded-[2rem] p-8 text-center shadow-glow"
+        class="loading-shell glass-panel glow-border shadow-glow w-full max-w-xl rounded-[2rem] p-8 text-center"
       >
         <div
           class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-orange-400/25 via-fuchsia-500/20 to-cyan-400/25"
@@ -385,7 +390,7 @@
         <p class="mt-6 text-sm font-semibold uppercase tracking-[0.28em] text-white/45">
           Weaving Prototype
         </p>
-        <h3 class="mt-3 font-display text-3xl font-bold text-white">
+        <h3 class="font-display mt-3 text-3xl font-bold text-white">
           Turning your idea into a playable concept.
         </h3>
         <p id="loading-message" class="mt-4 text-base leading-7 text-white/65">
@@ -394,6 +399,84 @@
       </div>
     </div>
 
+    <div
+      id="chat-overlay"
+      class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-2xl"
+      aria-hidden="true"
+    >
+      <div
+        class="glass-panel glow-border shadow-glow flex h-[min(760px,100%)] w-full max-w-3xl flex-col overflow-hidden rounded-[2rem]"
+      >
+        <div class="border-b border-white/10 px-5 py-4 sm:px-6">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="text-sm font-semibold uppercase tracking-[0.24em] text-white/45">
+                PlayWeaver AI
+              </p>
+              <h2 class="font-display mt-2 text-2xl font-bold text-white">
+                Shape your game concept
+              </h2>
+              <p class="mt-2 text-sm leading-6 text-white/60">
+                Answer a few quick follow-up questions so PlayWeaver can complete your game design board.
+              </p>
+            </div>
+            <button
+              id="chat-close-button"
+              type="button"
+              class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+              aria-label="Close chat"
+            >
+              <svg
+                class="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m18 6-12 12"></path>
+                <path d="m6 6 12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="chat-messages"
+          class="flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6"
+          aria-live="polite"
+        ></div>
+
+        <div class="border-t border-white/10 px-5 py-4 sm:px-6">
+          <form id="chat-form" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div class="flex-1">
+              <label for="chat-reply-input" class="mb-2 block text-sm text-white/50">
+                Your reply
+              </label>
+              <input
+                id="chat-reply-input"
+                name="chat-reply-input"
+                type="text"
+                autocomplete="off"
+                placeholder="Answer the AI so it can complete your game design board..."
+                class="w-full rounded-2xl border border-white/10 bg-slate-950/45 px-4 py-3 text-base text-white placeholder:text-white/35 focus:border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-300/30"
+              />
+            </div>
+            <button
+              id="chat-submit-button"
+              type="submit"
+              class="inline-flex min-h-[52px] items-center justify-center rounded-full bg-gradient-to-r from-orange-400 via-rose-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-fuchsia-500/30 focus:outline-none focus:ring-2 focus:ring-orange-300/60"
+            >
+              Send Reply
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/brain.js"></script>
     <script src="scripts.js"></script>
   </body>
 </html>
