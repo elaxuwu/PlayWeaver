@@ -1,0 +1,11 @@
+{
+  "name": "playweaver",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm install"
+  },
+  "dependencies": {
+    "openai": "^4.104.0"
+  }
+}
