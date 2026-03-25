@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PlayWeaver | AI-Powered Game Prototyping</title>
+    <meta
+      name="description"
+      content="PlayWeaver turns your game idea into a visual design doc and a playable prototype in seconds."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="scripts.js" defer></script>
+  </head>
+  <body class="min-h-screen overflow-x-hidden text-white">
+    <div class="pointer-events-none fixed inset-0 overflow-hidden">
+      <div
+        class="ambient-orb absolute -left-20 top-24 h-72 w-72 rounded-full bg-orange-400/18"
+      ></div>
+      <div
+        class="ambient-orb absolute right-0 top-0 h-80 w-80 rounded-full bg-blue-400/20"
+      ></div>
+      <div
+        class="ambient-orb absolute bottom-10 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-fuchsia-500/20"
+      ></div>
+    </div>
+
+    <div class="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 pb-10 pt-5 sm:px-6 lg:px-8">
+      <main class="flex-1">
+        <section id="hero" class="relative pt-3 sm:pt-5">
+          <div class="frame-shell rounded-[2rem] p-3 sm:p-4 lg:rounded-[2.75rem] lg:p-5">
+            <div
+              class="hero-stage relative overflow-hidden rounded-[1.6rem] border border-white/6 px-4 pb-8 pt-4 sm:px-8 sm:pb-10 lg:px-10 lg:pt-5"
+            >
+              <div class="pointer-events-none absolute inset-0">
+                <div
+                  class="absolute left-10 top-28 h-px w-32 bg-gradient-to-r from-white/30 to-transparent"
+                ></div>
+                <div
+                  class="absolute right-12 top-36 h-px w-40 bg-gradient-to-l from-white/20 to-transparent"
+                ></div>
+                <div
+                  class="absolute bottom-28 left-12 h-40 w-40 rounded-full bg-white/6 blur-3xl"
+                ></div>
+                <div
+                  class="absolute right-16 top-16 h-64 w-64 rounded-full bg-sky-300/10 blur-3xl"
+                ></div>
+              </div>
+
+              <header class="relative z-20">
+                <nav
+                  class="glass-panel shadow-glow-soft mx-auto flex max-w-6xl items-center justify-between rounded-full px-4 py-3 sm:px-6"
+                  aria-label="Primary"
+                >
+                  <a href="#hero" class="flex items-center gap-3">
+                    <span
+                      class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 via-rose-500 to-sky-400 text-sm font-bold text-white shadow-lg shadow-fuchsia-500/30"
+                      >PW</span
+                    >
+                    <span class="font-display text-lg font-bold tracking-tight text-white"
+                      >PlayWeaver</span
+                    >
+                  </a>
+
+                  <div
+                    class="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-sm text-white/70 backdrop-blur-xl md:flex"
+                  >
+                    <a
+                      class="rounded-full px-4 py-2 transition hover:bg-white/8 hover:text-white"
+                      href="#how-it-works"
+                      >How it Works</a
+                    >
+                    <a
+                      class="rounded-full px-4 py-2 transition hover:bg-white/8 hover:text-white"
+                      href="#faq"
+                      >FAQ</a
+                    >
+                  </div>
+
+                  <a
+                    href="#idea-form"
+                    class="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-orange-400 via-rose-500 to-fuchsia-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-fuchsia-500/30"
+                  >
+                    Start Weaving
+                  </a>
+                </nav>
+              </header>
+
+              <div class="relative mx-auto max-w-5xl pb-12 pt-16 text-center sm:pt-20 lg:pt-24">
+                <p
+                  class="hero-word pointer-events-none absolute inset-x-0 top-0 hidden font-display text-[clamp(5rem,16vw,12rem)] font-bold uppercase leading-none text-white/[0.045] lg:block"
+                >
+                  PlayWeaver
+                </p>
+
+                <div
+                  class="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm font-medium text-white/75 shadow-glow-soft backdrop-blur-xl"
+                >
+                  <span
+                    class="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_16px_rgba(134,239,172,0.9)]"
+                  ></span>
+                  Idea in. Whiteboard and prototype out.
+                </div>
+
+                <h1
+                  class="relative z-10 font-display text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
+                >
+                  Your Game Idea.
+                  <span
+                    class="bg-gradient-to-r from-cyan-200 via-white to-orange-200 bg-clip-text text-transparent"
+                  >
+                    A Playable Reality.
+                  </span>
+                  In Seconds.
+                </h1>
+
+                <p
+                  class="relative z-10 mx-auto mt-6 max-w-3xl text-base leading-7 text-white/68 sm:text-lg"
+                >
+                  The fastest path from a rough concept to an aha moment. Describe a
+                  mechanic, a world, or a mood, and PlayWeaver turns it into a design
+                  doc and a playable HTML5 prototype.
+                </p>
+
+                <form
+                  id="idea-form"
+                  class="glass-panel glow-border shadow-glow relative z-10 mx-auto mt-10 max-w-4xl rounded-[2rem] p-4 text-left sm:p-6"
+                >
+                  <div
+                    class="mb-4 flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <label
+                        for="game-idea"
+                        class="block text-sm font-semibold uppercase tracking-[0.24em] text-white/55"
+                      >
+                        Describe your dream game
+                      </label>
+                      <p class="mt-2 text-sm text-white/50">
+                        Prompt once. Generate a brainstorm, board, and playable concept.
+                      </p>
+                    </div>
+                    <div
+                      class="inline-flex items-center gap-2 self-start rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200"
+                    >
+                      <span class="h-2 w-2 rounded-full bg-emerald-300"></span>
+                      HTML5 Canvas output ready
+                    </div>
+                  </div>
+
+                  <div class="overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/25">
+                    <textarea
+                      id="game-idea"
+                      name="game-idea"
+                      rows="7"
+                      class="font-body w-full resize-none bg-transparent px-5 py-5 text-base leading-7 text-white placeholder:text-white/35 focus:outline-none sm:px-6 sm:py-6 sm:text-lg"
+                      placeholder="Describe your dream game idea. 'A retro 8-bit platformer where you control a cat,' or 'A top-down cyberpunk rogue-like where you fight robots.'"
+                    ></textarea>
+                  </div>
+
+                  <div
+                    class="mt-4 flex flex-col gap-4 border-t border-white/10 pt-4 lg:flex-row lg:items-center lg:justify-between"
+                  >
+                    <div class="flex flex-wrap gap-2 text-xs text-white/55 sm:text-sm">
+                      <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1.5"
+                        >Brainstorm with AI</span
+                      >
+                      <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1.5"
+                        >Generate Miro board</span
+                      >
+                      <span
+                        class="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-emerald-200"
+                        >Instant prototype preview</span
+                      >
+                    </div>
+
+                    <button
+                      id="weave-button"
+                      type="submit"
+                      class="inline-flex min-w-[220px] items-center justify-center gap-3 rounded-full bg-gradient-to-r from-orange-400 via-rose-500 to-fuchsia-500 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-orange-500/25 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-fuchsia-500/30 focus:outline-none focus:ring-2 focus:ring-orange-300/60"
+                    >
+                      <span>Weave My Game</span>
+                      <svg
+                        class="h-5 w-5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M5 12h14"></path>
+                        <path d="m12 5 7 7-7 7"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </form>
+
+                <div
+                  class="relative z-10 mx-auto mt-8 grid max-w-4xl gap-3 text-left text-sm text-white/58 sm:grid-cols-3"
+                >
+                  <div class="section-card rounded-2xl p-4">
+                    A prompt-first flow that gets people to the aha moment immediately.
+                  </div>
+                  <div class="section-card rounded-2xl p-4">
+                    Design docs and playable prototypes stay grounded in the same idea.
+                  </div>
+                  <div class="section-card rounded-2xl p-4">
+                    Built for pitch decks, internal demos, hackathons, and rapid concept tests.
+                  </div>
+                </div>
+              </div>
+
+              <section id="partners" class="relative border-t border-white/10 pt-6">
+                <div
+                  class="flex flex-col gap-2 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left"
+                >
+                  <p class="text-sm font-semibold uppercase tracking-[0.24em] text-white/45">
+                    Built with powerful partners.
+                  </p>
+                  <p class="text-sm text-white/50">
+                    Brainstorm, document, generate, and ship in one motion.
+                  </p>
+                </div>
+
+                <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                  <div class="glass-panel rounded-2xl px-4 py-3">
+                    <div
+                      class="flex items-center justify-center gap-3 rounded-xl border border-white/8 bg-black/20 px-3 py-3"
+                    >
+                      <svg viewBox="0 0 24 24" class="h-6 w-6 fill-none">
+                        <rect x="2" y="2" width="20" height="20" rx="5" fill="#FFD02F"></rect>
+                        <path d="M7 17V7l5 7 5-7v10" stroke="#111111" stroke-width="2"></path>
+                      </svg>
+                      <span class="font-display text-sm font-bold tracking-wide text-white/85"
+                        >Miro</span
+                      >
+                    </div>
+                  </div>
+
+                  <div class="glass-panel rounded-2xl px-4 py-3">
+                    <div
+                      class="flex items-center justify-center gap-3 rounded-xl border border-white/8 bg-black/20 px-3 py-3"
+                    >
+                      <svg viewBox="0 0 24 24" class="h-6 w-6 fill-none">
+                        <circle cx="12" cy="12" r="9" stroke="#6ecbff" stroke-width="2"></circle>
+                        <circle cx="12" cy="12" r="3.5" fill="#6ecbff"></circle>
+                      </svg>
+                      <span class="font-display text-sm font-bold tracking-wide text-white/85"
+                        >Featherless.ai</span
+                      >
+                    </div>
+                  </div>
+
+                  <div class="glass-panel rounded-2xl px-4 py-3">
+                    <div
+                      class="flex items-center justify-center gap-3 rounded-xl border border-white/8 bg-black/20 px-3 py-3"
+                    >
+                      <svg viewBox="0 0 24 24" class="h-6 w-6 fill-none">
+                        <rect x="3" y="7" width="4" height="10" rx="1.5" fill="#f147b9"></rect>
+                        <rect x="10" y="4" width="4" height="16" rx="1.5" fill="#ff7a59"></rect>
+                        <rect x="17" y="9" width="4" height="6" rx="1.5" fill="#6ecbff"></rect>
+                      </svg>
+                      <span class="font-display text-sm font-bold tracking-wide text-white/85"
+                        >Mobbin</span
+                      >
+                    </div>
+                  </div>
+
+                  <div class="glass-panel rounded-2xl px-4 py-3">
+                    <div
+                      class="flex items-center justify-center gap-3 rounded-xl border border-white/8 bg-black/20 px-3 py-3"
+                    >
+                      <svg viewBox="0 0 24 24" class="h-6 w-6 fill-none">
+                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"></circle>
+                        <path
+                          d="M7 8.5c2-1.6 8-1.6 10 0M7 15.5c2 1.6 8 1.6 10 0M5.5 12c1.8-3.3 11.2-3.3 13 0M5.5 12c1.8 3.3 11.2 3.3 13 0"
+                          stroke="currentColor"
+                          stroke-width="1.3"
+                          stroke-linecap="round"
+                        ></path>
+                      </svg>
+                      <span class="font-display text-sm font-bold tracking-wide text-white/85"
+                        >OpenAI GPT-4o</span
+                      >
+                    </div>
+                  </div>
+
+                  <div class="glass-panel rounded-2xl px-4 py-3">
+                    <div
+                      class="flex items-center justify-center gap-3 rounded-xl border border-white/8 bg-black/20 px-3 py-3"
+                    >
+                      <svg viewBox="0 0 24 24" class="h-6 w-6 fill-none">
+                        <path
+                          d="M6 17 12 8l6 9"
+                          stroke="#86efac"
+                          stroke-width="2.4"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        ></path>
+                      </svg>
+                      <span class="font-display text-sm font-bold tracking-wide text-white/85"
+                        >Netlify</span
+                      >
+                    </div>
+                  </div>
+
+                  <div class="glass-panel rounded-2xl px-4 py-3">
+                    <div
+                      class="flex items-center justify-center gap-3 rounded-xl border border-white/8 bg-black/20 px-3 py-3"
+                    >
+                      <svg viewBox="0 0 24 24" class="h-6 w-6 fill-none">
+                        <path
+                          d="M5 7h10a4 4 0 0 1 4 4v6a4 4 0 0 1-4 4H5"
+                          stroke="#ff7a59"
+                          stroke-width="2"
+                        ></path>
+                        <path
+                          d="M9 11h5M9 15h7"
+                          stroke="#ff7a59"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                        ></path>
+                      </svg>
+                      <span class="font-display text-sm font-bold tracking-wide text-white/85"
+                        >Upstash Redis</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section id="how-it-works" class="py-12 sm:py-16">
+          <div class="mx-auto max-w-6xl">
+            <div class="mb-10 max-w-2xl">
+              <p class="text-sm font-semibold uppercase tracking-[0.24em] text-white/45">
+                How it Works
+              </p>
+              <h2 class="font-display mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                One clean flow from prompt to playable prototype.
+              </h2>
+            </div>
+
+            <div class="grid gap-6 md:grid-cols-3">
+              <article
+                class="section-card glow-border shadow-glow-soft rounded-[1.75rem] p-6 transition duration-300 hover:-translate-y-1"
+              >
+                <div
+                  class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-300/14 text-cyan-100"
+                >
+                  <svg
+                    class="h-6 w-6"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 18h6"></path>
+                    <path d="M10 22h4"></path>
+                    <path
+                      d="M12 2a7 7 0 0 0-4 12.75c.5.35 1 .88 1.2 1.5h5.6c.2-.62.7-1.15 1.2-1.5A7 7 0 0 0 12 2Z"
+                    ></path>
+                  </svg>
+                </div>
+                <h3 class="font-display text-2xl font-bold text-white">
+                  1. Brainstorm with AI.
+                </h3>
+                <p class="mt-4 text-base leading-7 text-white/68">
+                  Chat with high-speed models on Featherless.ai to define mechanics,
+                  characters, and settings in natural language.
+                </p>
+              </article>
+
+              <article
+                class="section-card glow-border shadow-glow-soft rounded-[1.75rem] p-6 transition duration-300 hover:-translate-y-1"
+              >
+                <div
+                  class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-300/14 text-orange-100"
+                >
+                  <svg
+                    class="h-6 w-6"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="4" width="7" height="7" rx="1.5"></rect>
+                    <rect x="14" y="4" width="7" height="7" rx="1.5"></rect>
+                    <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                    <path d="M17.5 14v7"></path>
+                    <path d="M14 17.5h7"></path>
+                  </svg>
+                </div>
+                <h3 class="font-display text-2xl font-bold text-white">
+                  2. Automatic Visual Design Doc.
+                </h3>
+                <p class="mt-4 text-base leading-7 text-white/68">
+                  Watch as PlayWeaver and Miro instantly generate your Game Design
+                  Document whiteboard with sticky notes.
+                </p>
+              </article>
+
+              <article
+                class="section-card glow-border shadow-glow-soft rounded-[1.75rem] p-6 transition duration-300 hover:-translate-y-1"
+              >
+                <div
+                  class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-300/14 text-emerald-100"
+                >
+                  <svg
+                    class="h-6 w-6"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 7h16"></path>
+                    <path d="M4 12h8"></path>
+                    <path d="M4 17h12"></path>
+                    <path d="m17 15 3 3-3 3"></path>
+                  </svg>
+                </div>
+                <h3 class="font-display text-2xl font-bold text-white">
+                  3. Instant Playable Prototype.
+                </h3>
+                <p class="mt-4 text-base leading-7 text-white/68">
+                  Weave robust code with OpenAI GPT-4o and play your single-file HTML5
+                  Canvas game in seconds. No engine required.
+                </p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="faq" class="pb-10 sm:pb-12">
+          <div class="mx-auto max-w-6xl">
+            <div class="mb-8 max-w-2xl">
+              <p class="text-sm font-semibold uppercase tracking-[0.24em] text-white/45">
+                FAQ
+              </p>
+              <h2 class="font-display mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                Designed to feel simple from the very first prompt.
+              </h2>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-3">
+              <article class="section-card rounded-[1.5rem] p-5">
+                <h3 class="font-display text-xl font-bold text-white">Do I need a game engine?</h3>
+                <p class="mt-3 text-sm leading-7 text-white/65">
+                  No. The prototype output is framed as a single-file HTML5 Canvas game,
+                  so the page can communicate speed and accessibility immediately.
+                </p>
+              </article>
+
+              <article class="section-card rounded-[1.5rem] p-5">
+                <h3 class="font-display text-xl font-bold text-white">What happens after I prompt?</h3>
+                <p class="mt-3 text-sm leading-7 text-white/65">
+                  PlayWeaver brainstorms with AI, generates a visual design doc in Miro,
+                  and prepares a playable prototype concept from the same idea.
+                </p>
+              </article>
+
+              <article class="section-card rounded-[1.5rem] p-5">
+                <h3 class="font-display text-xl font-bold text-white">Who is this for?</h3>
+                <p class="mt-3 text-sm leading-7 text-white/65">
+                  Founders, designers, game jam teams, and anyone who wants a believable
+                  prototype before investing in a full production pipeline.
+                </p>
+              </article>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="py-8 text-center text-sm text-white/45">
+        <p>&copy; <span id="year"></span> PlayWeaver. Turn sparks into playable worlds.</p>
+      </footer>
+    </div>
+
+    <div
+      class="loading-overlay fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-2xl"
+      aria-hidden="true"
+    >
+      <div
+        class="loading-shell glass-panel glow-border shadow-glow w-full max-w-xl rounded-[2rem] p-8 text-center"
+      >
+        <div
+          class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-orange-400/25 via-fuchsia-500/20 to-cyan-400/25"
+        >
+          <div
+            class="weave-spinner h-8 w-8 rounded-full border-2 border-white/20 border-t-white"
+          ></div>
+        </div>
+        <p class="mt-6 text-sm font-semibold uppercase tracking-[0.28em] text-white/45">
+          Weaving Prototype
+        </p>
+        <h3 class="font-display mt-3 text-3xl font-bold text-white">
+          Turning your idea into a playable concept.
+        </h3>
+        <p id="loading-message" class="mt-4 text-base leading-7 text-white/65">
+          Mapping mechanics, building a visual whiteboard, and preparing an HTML5 game shell.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
