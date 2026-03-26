@@ -55,15 +55,6 @@ Additional behavior rules:
 - Be upbeat, natural, and collaborative. You may include one or two brief creative suggestions to help the user brainstorm.
 - Never wrap the JSON in markdown or code fences. Never add commentary outside the JSON object.`;
 
-const READY_CONFIRMATION_PATTERNS = [
-  /^(yes|yep|yeah|sure|ok|okay|ready|proceed|continue|do it|go ahead)\b/i,
-  /\b(i am|i'm|im)\s+ready\b/i,
-  /\b(generate|build|make)\s+(it|the game)\b/i,
-  /\b(go ahead and|please)\s+(generate|build|make)\b/i,
-  /\b(looks good|sounds good|all set|no changes|nothing to change)\b/i,
-  /\b(let'?s go|let'?s do it)\b/i,
-];
-
 function normalizeBoardValue(value) {
   if (typeof value !== "string") {
     return "None";
@@ -73,34 +64,50 @@ function normalizeBoardValue(value) {
   return trimmedValue ? trimmedValue : "None";
 }
 
-function getLatestMessageContent(messageHistory, role) {
-  if (!Array.isArray(messageHistory)) {
+function stripPrematureCompletionText(message) {
+  if (typeof message !== "string") {
     return "";
   }
 
-  for (let index = messageHistory.length - 1; index >= 0; index -= 1) {
-    const message = messageHistory[index];
+  return message
+    .replace(
+      /\*\*All details are set! Are you ready to generate the game, or do you want to change anything\?\*\*/gi,
+      ""
+    )
+    .replace(
+      /All details are set! Are you ready to generate the game, or do you want to change anything\?/gi,
+      ""
+    )
+    .replace(/[^.?!]*ready to generate[^.?!]*[.?!]?/gi, "")
+    .replace(/[^.?!]*ready for the editor[^.?!]*[.?!]?/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 
-    if (message?.role === role && typeof message.content === "string") {
-      return message.content;
-    }
+function appendMissingFieldQuestion(message, field) {
+  const question = `**${FIELD_QUESTIONS[field]}**`;
+
+  if (!message) {
+    return `I am excited to build this with you. ${question}`;
   }
 
-  return "";
+  if (message.includes(question)) {
+    return message;
+  }
+
+  const separator = /[.?!]$/.test(message) ? " " : ". ";
+  return `${message}${separator}${question}`;
 }
 
-function userExplicitlyConfirmed(messageHistory) {
-  const latestUserMessage = getLatestMessageContent(messageHistory, "user").trim();
+function normalizeAssistantReply(rawReply) {
+  let parsedReply;
 
-  return READY_CONFIRMATION_PATTERNS.some((pattern) => pattern.test(latestUserMessage));
-}
+  try {
+    parsedReply = JSON.parse(rawReply);
+  } catch (error) {
+    throw new Error(`Invalid JSON returned from chat model: ${error.message}`);
+  }
 
-function assistantAskedForConfirmation(messageHistory) {
-  return getLatestMessageContent(messageHistory, "assistant").includes(CONFIRMATION_MESSAGE);
-}
-
-function normalizeAssistantReply(rawReply, options = {}) {
-  const parsedReply = JSON.parse(rawReply);
   const sourceBoardState =
     parsedReply?.boardState && typeof parsedReply.boardState === "object"
       ? parsedReply.boardState
@@ -111,31 +118,34 @@ function normalizeAssistantReply(rawReply, options = {}) {
     return boardState;
   }, {});
 
-  const firstMissingField = BOARD_FIELDS.find(
-    (field) => normalizedBoardState[field] === "None"
-  );
-  const hasCompleteBoard = BOARD_FIELDS.every(
-    (field) => normalizedBoardState[field] !== "None"
-  );
-  const canComplete = options.allowCompletion === true && hasCompleteBoard;
-  const fallbackMessage = firstMissingField
-    ? `I am excited to build this with you. **${FIELD_QUESTIONS[firstMissingField]}**`
-    : canComplete
+  const boardState = {
+    ...EMPTY_BOARD_STATE,
+    ...normalizedBoardState,
+  };
+
+  const firstMissingField = BOARD_FIELDS.find((field) => boardState[field] === "None");
+  const rawMessage =
+    typeof parsedReply?.message === "string" ? parsedReply.message.trim() : "";
+
+  if (firstMissingField) {
+    const cleanedMessage = stripPrematureCompletionText(rawMessage);
+
+    return {
+      message: appendMissingFieldQuestion(cleanedMessage, firstMissingField),
+      boardState,
+      isComplete: false,
+    };
+  }
+
+  const fallbackMessage =
+    parsedReply?.isComplete === true
       ? "Everything is locked in and ready for the editor."
       : CONFIRMATION_PROMPT;
 
-  const message =
-    typeof parsedReply?.message === "string" && parsedReply.message.trim()
-      ? parsedReply.message.trim()
-      : fallbackMessage;
-
   return {
-    message,
-    boardState: {
-      ...EMPTY_BOARD_STATE,
-      ...normalizedBoardState,
-    },
-    isComplete: parsedReply?.isComplete === true && canComplete,
+    message: rawMessage || fallbackMessage,
+    boardState,
+    isComplete: parsedReply?.isComplete === true,
   };
 }
 
@@ -161,26 +171,28 @@ export async function onRequestPost(context) {
       });
     }
 
-    const allowCompletion =
-      assistantAskedForConfirmation(messageHistory) &&
-      userExplicitlyConfirmed(messageHistory);
-
     const completion = await client.chat.completions.create({
       model: "deepseek-ai/DeepSeek-V3-0324",
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        ...messageHistory.map((m) => ({
-          role: m.role,
-          content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+        ...messageHistory.map((message) => ({
+          role: message.role,
+          content:
+            typeof message.content === "string"
+              ? message.content
+              : JSON.stringify(message.content),
         })),
       ],
     });
 
     const assistantReply = completion.choices?.[0]?.message?.content?.trim() || "";
-    const normalizedReply = normalizeAssistantReply(assistantReply, {
-      allowCompletion,
-    });
+
+    if (!assistantReply) {
+      throw new Error("Chat model returned an empty response.");
+    }
+
+    const normalizedReply = normalizeAssistantReply(assistantReply);
 
     return new Response(JSON.stringify(normalizedReply), {
       status: 200,

@@ -8,7 +8,19 @@ async function askPlayWeaverAI(messageHistory) {
   });
 
   if (!response.ok) {
-    throw new Error(`PlayWeaver AI request failed with status ${response.status}`);
+    let errorMessage = `PlayWeaver AI request failed with status ${response.status}`;
+
+    try {
+      const errorPayload = await response.json();
+
+      if (errorPayload?.error && typeof errorPayload.error === "string") {
+        errorMessage = errorPayload.error;
+      }
+    } catch (parseError) {
+      console.error("Failed to parse PlayWeaver AI error payload:", parseError);
+    }
+
+    throw new Error(errorMessage);
   }
 
   const parsedReply = await response.json();
