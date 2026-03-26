@@ -11,21 +11,23 @@ async function askPlayWeaverAI(messageHistory) {
     throw new Error(`PlayWeaver AI request failed with status ${response.status}`);
   }
 
-  const aiReply = await response.text();
+  const parsedReply = await response.json();
 
-  try {
-    const parsedReply = JSON.parse(aiReply);
-
-    if (parsedReply && parsedReply.isComplete === true) {
-      localStorage.setItem("playweaverGameConfig", JSON.stringify(parsedReply));
-      window.location.href = "/editor.html";
-      return parsedReply;
-    }
-  } catch (error) {
-    // The assistant returned normal text, so we surface it to the chat UI.
+  if (!parsedReply || typeof parsedReply !== "object") {
+    throw new Error("PlayWeaver AI returned an invalid response shape.");
   }
 
-  return aiReply;
+  if (parsedReply.isComplete === true) {
+    const boardState =
+      parsedReply.boardState && typeof parsedReply.boardState === "object"
+        ? parsedReply.boardState
+        : parsedReply;
+
+    localStorage.setItem("playweaverGameConfig", JSON.stringify(boardState));
+    window.location.href = "/editor.html";
+  }
+
+  return parsedReply;
 }
 
 window.askPlayWeaverAI = askPlayWeaverAI;

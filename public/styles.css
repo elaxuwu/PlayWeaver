@@ -80,6 +80,9 @@ body {
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
@@ -299,9 +302,12 @@ body.is-loading .loading-shell {
     scroll-behavior: auto;
   }
 
-  .ambient-orb,
-  .weave-spinner {
+  .ambient-orb {
     animation: none;
+  }
+
+  .weave-spinner {
+    animation: spin 1.6s linear infinite;
   }
 
   .loading-overlay,

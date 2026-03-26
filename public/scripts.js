@@ -11,6 +11,22 @@ const chatReplyInput = document.getElementById("chat-reply-input");
 const chatSubmitButton = document.getElementById("chat-submit-button");
 const chatCloseButton = document.getElementById("chat-close-button");
 
+const liveBoardFields = [
+  { key: "gameName", elementId: "live-board-game-name" },
+  { key: "genre", elementId: "live-board-genre" },
+  { key: "coreMechanic", elementId: "live-board-core-mechanic" },
+  { key: "artStyle", elementId: "live-board-art-style" },
+  { key: "setting", elementId: "live-board-setting" },
+  { key: "playerCharacter", elementId: "live-board-player-character" },
+  { key: "enemies", elementId: "live-board-enemies" },
+  { key: "winCondition", elementId: "live-board-win-condition" },
+];
+
+const liveBoardNodes = liveBoardFields.reduce((nodes, field) => {
+  nodes[field.key] = document.getElementById(field.elementId);
+  return nodes;
+}, {});
+
 const messageHistory = [];
 const loadingStages = [
   "Mapping mechanics, building a visual whiteboard, and preparing an HTML5 game shell.",
@@ -154,9 +170,55 @@ function removeThinkingIndicator() {
   thinkingIndicatorNode = null;
 }
 
+function normalizeBoardValue(value) {
+  if (typeof value !== "string") {
+    return "None";
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue ? trimmedValue : "None";
+}
+
+function createBoardStateSnapshot(boardState = {}) {
+  return liveBoardFields.reduce((snapshot, field) => {
+    snapshot[field.key] = normalizeBoardValue(boardState?.[field.key]);
+    return snapshot;
+  }, {});
+}
+
+function updateLiveBoard(boardState = {}) {
+  const snapshot = createBoardStateSnapshot(boardState);
+
+  liveBoardFields.forEach((field) => {
+    const node = liveBoardNodes[field.key];
+
+    if (node) {
+      node.textContent = snapshot[field.key];
+    }
+  });
+
+  return snapshot;
+}
+
+function recordAssistantState(result, message) {
+  if (!result || typeof result !== "object") {
+    return;
+  }
+
+  pushMessage(
+    "assistant",
+    JSON.stringify({
+      message,
+      boardState: createBoardStateSnapshot(result.boardState),
+      isComplete: result.isComplete === true,
+    })
+  );
+}
+
 function resetConversation() {
   messageHistory.length = 0;
   removeThinkingIndicator();
+  updateLiveBoard();
   hideChatOverlay();
 
   if (chatMessages) {
@@ -173,30 +235,33 @@ function pushMessage(role, content) {
 }
 
 async function handleAIResponse(result) {
-  if (typeof result === "string") {
-    setLoadingState(false);
-    removeThinkingIndicator();
-    setChatInputState(true);
-    showChatOverlay();
-    appendMessage("assistant", result);
-    return;
-  }
-
-  if (result && typeof result === "object" && result.isComplete === true) {
-    setLoadingState(false);
-    removeThinkingIndicator();
-    setChatInputState(true);
-    return;
-  }
-
   setLoadingState(false);
   removeThinkingIndicator();
   setChatInputState(true);
+
+  if (!result || typeof result !== "object") {
+    showChatOverlay();
+    appendMessage(
+      "assistant",
+      "I received an unexpected response. Please try answering again so I can finish your game board."
+    );
+    return;
+  }
+
+  updateLiveBoard(result.boardState);
+
+  if (result.isComplete === true) {
+    return;
+  }
+
+  const assistantMessage =
+    typeof result.message === "string" && result.message.trim()
+      ? result.message.trim()
+      : "I am still shaping the board with you. **What should we define next?**";
+
   showChatOverlay();
-  appendMessage(
-    "assistant",
-    "I received an unexpected response. Please try answering again so I can finish your game board."
-  );
+  appendMessage("assistant", assistantMessage);
+  recordAssistantState(result, assistantMessage);
 }
 
 async function requestAI() {
@@ -292,3 +357,5 @@ document.addEventListener("keydown", (event) => {
     hideChatOverlay();
   }
 });
+
+updateLiveBoard();

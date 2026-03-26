@@ -405,7 +405,7 @@
       aria-hidden="true"
     >
       <div
-        class="glass-panel glow-border shadow-glow flex h-[min(760px,100%)] w-full max-w-3xl flex-col overflow-hidden rounded-[2rem]"
+        class="glass-panel glow-border shadow-glow flex h-[min(760px,100%)] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem]"
       >
         <div class="border-b border-white/10 px-5 py-4 sm:px-6">
           <div class="flex items-start justify-between gap-4">
@@ -443,35 +443,88 @@
           </div>
         </div>
 
-        <div
-          id="chat-messages"
-          class="flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6"
-          aria-live="polite"
-        ></div>
+        <div class="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">
+          <section class="flex min-h-0 flex-col lg:border-r lg:border-white/10">
+            <div
+              id="chat-messages"
+              class="flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6"
+              aria-live="polite"
+            ></div>
 
-        <div class="border-t border-white/10 px-5 py-4 sm:px-6">
-          <form id="chat-form" class="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div class="flex-1">
-              <label for="chat-reply-input" class="mb-2 block text-sm text-white/50">
-                Your reply
-              </label>
-              <input
-                id="chat-reply-input"
-                name="chat-reply-input"
-                type="text"
-                autocomplete="off"
-                placeholder="Answer the AI so it can complete your game design board..."
-                class="w-full rounded-2xl border border-white/10 bg-slate-950/45 px-4 py-3 text-base text-white placeholder:text-white/35 focus:border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-300/30"
-              />
+            <div class="border-t border-white/10 px-5 py-4 sm:px-6">
+              <form id="chat-form" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div class="flex-1">
+                  <label for="chat-reply-input" class="mb-2 block text-sm text-white/50">
+                    Your reply
+                  </label>
+                  <input
+                    id="chat-reply-input"
+                    name="chat-reply-input"
+                    type="text"
+                    autocomplete="off"
+                    placeholder="Answer the AI so it can complete your game design board..."
+                    class="w-full rounded-2xl border border-white/10 bg-slate-950/45 px-4 py-3 text-base text-white placeholder:text-white/35 focus:border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-300/30"
+                  />
+                </div>
+                <button
+                  id="chat-submit-button"
+                  type="submit"
+                  class="inline-flex min-h-[52px] items-center justify-center rounded-full bg-gradient-to-r from-orange-400 via-rose-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-fuchsia-500/30 focus:outline-none focus:ring-2 focus:ring-orange-300/60"
+                >
+                  Send Reply
+                </button>
+              </form>
             </div>
-            <button
-              id="chat-submit-button"
-              type="submit"
-              class="inline-flex min-h-[52px] items-center justify-center rounded-full bg-gradient-to-r from-orange-400 via-rose-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-fuchsia-500/30 focus:outline-none focus:ring-2 focus:ring-orange-300/60"
-            >
-              Send Reply
-            </button>
-          </form>
+          </section>
+
+          <aside class="flex min-h-0 flex-col bg-white/[0.03]">
+            <div class="border-t border-white/10 px-5 py-5 sm:px-6 lg:border-t-0 lg:border-b lg:border-white/10">
+              <p class="text-sm font-semibold uppercase tracking-[0.24em] text-white/45">
+                Live Board
+              </p>
+              <h3 class="font-display mt-2 text-2xl font-bold text-white">
+                Your concept, live-updated
+              </h3>
+              <p class="mt-2 text-sm leading-6 text-white/60">
+                Every answer fills in the design board so you can track the concept as it forms.
+              </p>
+            </div>
+
+            <div class="grid flex-1 gap-3 overflow-y-auto px-5 py-5 sm:grid-cols-2 sm:px-6 lg:grid-cols-1">
+              <article class="board-card board-card-featured">
+                <p class="board-label">Game Name</p>
+                <p id="live-board-game-name" class="board-value">None</p>
+              </article>
+              <article class="board-card">
+                <p class="board-label">Genre</p>
+                <p id="live-board-genre" class="board-value">None</p>
+              </article>
+              <article class="board-card">
+                <p class="board-label">Core Mechanic</p>
+                <p id="live-board-core-mechanic" class="board-value">None</p>
+              </article>
+              <article class="board-card">
+                <p class="board-label">Art Style</p>
+                <p id="live-board-art-style" class="board-value">None</p>
+              </article>
+              <article class="board-card">
+                <p class="board-label">Setting</p>
+                <p id="live-board-setting" class="board-value">None</p>
+              </article>
+              <article class="board-card">
+                <p class="board-label">Player Character</p>
+                <p id="live-board-player-character" class="board-value">None</p>
+              </article>
+              <article class="board-card">
+                <p class="board-label">Enemies</p>
+                <p id="live-board-enemies" class="board-value">None</p>
+              </article>
+              <article class="board-card">
+                <p class="board-label">Win Condition</p>
+                <p id="live-board-win-condition" class="board-value">None</p>
+              </article>
+            </div>
+          </aside>
         </div>
       </div>
     </div>
