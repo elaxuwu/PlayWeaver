@@ -33,7 +33,7 @@ export async function onRequestPost(context) {
     });
 
     const completion = await client.chat.completions.create({
-      model: "gpt-5.4-2026-03-05",
+      model: "gpt-5.4-nano-2026-03-17",
       reasoning_effort: "high",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
