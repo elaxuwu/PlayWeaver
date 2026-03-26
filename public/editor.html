@@ -228,6 +228,24 @@
         });
       }
 
+      function getPrototypeErrorMessage(responseBody, status) {
+        if (!responseBody) {
+          return `Prototype request failed with status ${status}.`;
+        }
+
+        try {
+          const parsedBody = JSON.parse(responseBody);
+
+          if (typeof parsedBody?.error === "string" && parsedBody.error.trim()) {
+            return parsedBody.error.trim();
+          }
+        } catch (error) {
+          console.error("Failed to parse prototype error payload:", error);
+        }
+
+        return responseBody;
+      }
+
       async function handleGeneratePrototype() {
         if (!currentConfig) {
           if (generateStatus) {
@@ -255,7 +273,7 @@
 
           if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(errorText || `Prototype request failed with status ${response.status}`);
+            throw new Error(getPrototypeErrorMessage(errorText, response.status));
           }
 
           const htmlResponse = await response.text();
@@ -271,7 +289,9 @@
           console.error("Failed to generate prototype:", error);
           if (generateStatus) {
             generateStatus.textContent =
-              "Something went wrong while generating the prototype. Please try again.";
+              error instanceof Error && error.message
+                ? `Prototype generation failed: ${error.message}`
+                : "Something went wrong while generating the prototype. Please try again.";
           }
         } finally {
           if (generateBtn) {
