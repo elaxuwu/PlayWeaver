@@ -64,6 +64,14 @@ function normalizeBoardValue(value) {
   return trimmedValue ? trimmedValue : "None";
 }
 
+function stripJsonCodeFences(content) {
+  return String(content || "")
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
 function stripPrematureCompletionText(message) {
   if (typeof message !== "string") {
     return "";
@@ -101,9 +109,10 @@ function appendMissingFieldQuestion(message, field) {
 
 function normalizeAssistantReply(rawReply) {
   let parsedReply;
+  const cleanedReply = stripJsonCodeFences(rawReply);
 
   try {
-    parsedReply = JSON.parse(rawReply);
+    parsedReply = JSON.parse(cleanedReply);
   } catch (error) {
     throw new Error(`Invalid JSON returned from chat model: ${error.message}`);
   }
