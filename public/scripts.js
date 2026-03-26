@@ -10,22 +10,18 @@ const chatForm = document.getElementById("chat-form");
 const chatReplyInput = document.getElementById("chat-reply-input");
 const chatSubmitButton = document.getElementById("chat-submit-button");
 const chatCloseButton = document.getElementById("chat-close-button");
+const boardGrid = document.querySelector(".live-board-grid");
 
 const liveBoardFields = [
-  { key: "gameName", elementId: "live-board-game-name" },
-  { key: "genre", elementId: "live-board-genre" },
-  { key: "coreMechanic", elementId: "live-board-core-mechanic" },
-  { key: "artStyle", elementId: "live-board-art-style" },
-  { key: "setting", elementId: "live-board-setting" },
-  { key: "playerCharacter", elementId: "live-board-player-character" },
-  { key: "enemies", elementId: "live-board-enemies" },
-  { key: "winCondition", elementId: "live-board-win-condition" },
+  { key: "gameName", label: "Game Name" },
+  { key: "genre", label: "Genre" },
+  { key: "coreMechanic", label: "Core Mechanic" },
+  { key: "artStyle", label: "Art Style" },
+  { key: "setting", label: "Setting" },
+  { key: "playerCharacter", label: "Player Character" },
+  { key: "enemies", label: "Enemies" },
+  { key: "winCondition", label: "Win Condition" },
 ];
-
-const liveBoardNodes = liveBoardFields.reduce((nodes, field) => {
-  nodes[field.key] = document.getElementById(field.elementId);
-  return nodes;
-}, {});
 
 const messageHistory = [];
 const loadingStages = [
@@ -154,10 +150,39 @@ function appendMessage(role, content, options = {}) {
     return null;
   }
 
-  const messageNode = createMessageElement(role, content, options);
-  chatMessages.appendChild(messageNode);
+  const row = document.createElement("div");
+  row.className = `chat-message-row ${role === "user" ? "user" : "assistant"}`;
+
+  const wrap = document.createElement("div");
+  wrap.className = "chat-message-wrap";
+
+  const meta = document.createElement("p");
+  meta.className = "chat-meta";
+  meta.textContent = role === "user" ? "You" : options.metaLabel || "PlayWeaver AI";
+
+  const messageDiv = document.createElement("div");
+  messageDiv.className = `chat-bubble whitespace-pre-wrap ${role === "user" ? "user" : "assistant"}${
+    options.isThinking ? " thinking" : ""
+  }`;
+
+  const safeContent = String(content)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+  const formattedContent = safeContent.replace(
+    /\*\*(.*?)\*\*/g,
+    '<strong class="text-orange-400 font-bold drop-shadow-md">$1</strong>'
+  );
+
+  messageDiv.innerHTML = formattedContent;
+
+  wrap.append(meta, messageDiv);
+  row.appendChild(wrap);
+  chatMessages.appendChild(row);
   scrollChatToBottom();
-  return messageNode;
+  return row;
 }
 
 function addThinkingIndicator() {
@@ -190,14 +215,30 @@ function createBoardStateSnapshot(boardState = {}) {
 }
 
 function updateLiveBoard(boardState = {}) {
+  if (!boardGrid) {
+    return createBoardStateSnapshot(boardState);
+  }
+
   const snapshot = createBoardStateSnapshot(boardState);
+  boardGrid.innerHTML = "";
 
-  liveBoardFields.forEach((field) => {
-    const node = liveBoardNodes[field.key];
+  liveBoardFields.forEach(({ key, label }) => {
+    const value = snapshot[key];
+    const escapedLabel = String(label)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+    const escapedValue = String(value || "None")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+    const cardHtml = `<div class="board-card flex flex-col p-3 rounded-xl"><span class="text-white/50 text-xs uppercase tracking-wider mb-1">${escapedLabel}</span><span class="text-white font-medium text-sm capitalize">${escapedValue}</span></div>`;
 
-    if (node) {
-      node.textContent = snapshot[field.key];
-    }
+    boardGrid.insertAdjacentHTML("beforeend", cardHtml);
   });
 
   return snapshot;
