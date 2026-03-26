@@ -110,6 +110,32 @@
             id="board-grid"
             class="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4"
           ></div>
+
+          <section class="mt-12 border-t border-white/10 pt-10">
+            <div class="mx-auto max-w-4xl text-center">
+              <p class="text-sm font-semibold uppercase tracking-[0.24em] text-white/45">
+                Game Prototype
+              </p>
+              <h2 class="font-display mt-3 text-3xl font-bold tracking-tight text-white">
+                Generate a playable build
+              </h2>
+              <p class="mx-auto mt-3 max-w-2xl text-base leading-7 text-white/65">
+                Turn your board into a lightweight HTML5 prototype you can play right here.
+              </p>
+              <button
+                id="generate-btn"
+                type="button"
+                class="mt-6 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-orange-400 via-rose-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-fuchsia-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Generate Playable Prototype
+              </button>
+              <p id="generate-status" class="mt-4 min-h-[1.5rem] text-sm text-white/60"></p>
+            </div>
+
+            <div class="aspect-video w-full max-w-4xl mx-auto rounded-2xl border-2 border-white/20 bg-black overflow-hidden relative mt-6">
+              <iframe id="game-frame" class="w-full h-full border-0 bg-white"></iframe>
+            </div>
+          </section>
         </section>
 
         <section id="empty-state" class="mx-auto hidden max-w-3xl pt-12">
@@ -153,11 +179,16 @@
       const boardTitle = document.getElementById("board-title");
       const summaryName = document.getElementById("summary-name");
       const summaryGenre = document.getElementById("summary-genre");
+      const generateBtn = document.getElementById("generate-btn");
+      const generateStatus = document.getElementById("generate-status");
+      const gameFrame = document.getElementById("game-frame");
+      let currentConfig = null;
 
       function showEmptyState() {
         boardSection.classList.add("hidden");
         emptyState.classList.remove("hidden");
         document.title = "Untitled Game";
+        currentConfig = null;
       }
 
       function createBoardCard(field, value, isFeatured) {
@@ -179,6 +210,7 @@
       function renderBoard(config) {
         boardSection.classList.remove("hidden");
         emptyState.classList.add("hidden");
+        currentConfig = config;
 
         const safeGameName = config.gameName || "Untitled Game";
         const safeGenre = config.genre || "Not defined yet";
@@ -194,6 +226,62 @@
           const card = createBoardCard(field, value, index === 0);
           boardGrid.appendChild(card);
         });
+      }
+
+      async function handleGeneratePrototype() {
+        if (!currentConfig) {
+          if (generateStatus) {
+            generateStatus.textContent = "No saved game config found yet.";
+          }
+          return;
+        }
+
+        if (generateBtn) {
+          generateBtn.disabled = true;
+        }
+
+        if (generateStatus) {
+          generateStatus.textContent = "Writing game engine... this takes about 20-30 seconds";
+        }
+
+        try {
+          const response = await fetch("/generate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ gameConfig: currentConfig }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || `Prototype request failed with status ${response.status}`);
+          }
+
+          const htmlResponse = await response.text();
+
+          if (gameFrame) {
+            document.getElementById("game-frame").srcdoc = htmlResponse;
+          }
+
+          if (generateStatus) {
+            generateStatus.textContent = "Prototype ready. Play it below.";
+          }
+        } catch (error) {
+          console.error("Failed to generate prototype:", error);
+          if (generateStatus) {
+            generateStatus.textContent =
+              "Something went wrong while generating the prototype. Please try again.";
+          }
+        } finally {
+          if (generateBtn) {
+            generateBtn.disabled = false;
+          }
+        }
+      }
+
+      if (generateBtn) {
+        generateBtn.addEventListener("click", handleGeneratePrototype);
       }
 
       try {

@@ -10,7 +10,7 @@ const chatForm = document.getElementById("chat-form");
 const chatReplyInput = document.getElementById("chat-reply-input");
 const chatSubmitButton = document.getElementById("chat-submit-button");
 const chatCloseButton = document.getElementById("chat-close-button");
-const boardGrid = document.querySelector(".live-board-grid");
+const boardGrid = document.getElementById("live-board-grid");
 
 const liveBoardFields = [
   { key: "gameName", label: "Game Name" },
@@ -222,21 +222,9 @@ function updateLiveBoard(boardState = {}) {
   const snapshot = createBoardStateSnapshot(boardState);
   boardGrid.innerHTML = "";
 
-  liveBoardFields.forEach(({ key, label }) => {
-    const value = snapshot[key];
-    const escapedLabel = String(label)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-    const escapedValue = String(value || "None")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-    const cardHtml = `<div class="board-card flex flex-col p-3 rounded-xl"><span class="text-white/50 text-xs uppercase tracking-wider mb-1">${escapedLabel}</span><span class="text-white font-medium text-sm capitalize">${escapedValue}</span></div>`;
+  liveBoardFields.forEach((field) => {
+    const val = snapshot[field.key] || "None";
+    const cardHtml = `<div class="board-card flex flex-col p-3 rounded-xl bg-white/5 border border-white/10 overflow-hidden"><span class="text-white/50 text-[10px] uppercase tracking-wider mb-1">${field.label}</span><span class="text-white font-medium text-sm capitalize truncate">${val}</span></div>`;
 
     boardGrid.insertAdjacentHTML("beforeend", cardHtml);
   });
