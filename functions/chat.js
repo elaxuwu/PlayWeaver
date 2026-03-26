@@ -166,7 +166,7 @@ export async function onRequestPost(context) {
       userExplicitlyConfirmed(messageHistory);
 
     const completion = await client.chat.completions.create({
-      model: "Qwen/Qwen2.5-7B-Instruct",
+      model: "deepseek-ai/DeepSeek-V3-0324",
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
