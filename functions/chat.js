@@ -114,11 +114,12 @@ export async function onRequestPost(context) {
 
     const completion = await client.chat.completions.create({
       model: "Qwen/Qwen2.5-7B-Instruct",
+      response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        ...messageHistory.map((message) => ({
-          role: message.role,
-          content: message.content,
+        ...messageHistory.map((m) => ({
+          role: m.role,
+          content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
         })),
       ],
     });

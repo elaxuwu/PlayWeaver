@@ -120,7 +120,10 @@ function formatMessageContent(content) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-  return escapedContent.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  return escapedContent.replace(
+    /\*\*(.+?)\*\*/g,
+    '<strong class="text-orange-400 font-bold drop-shadow-md">$1</strong>'
+  );
 }
 
 function createMessageElement(role, content, options = {}) {
@@ -200,19 +203,12 @@ function updateLiveBoard(boardState = {}) {
   return snapshot;
 }
 
-function recordAssistantState(result, message) {
+function recordAssistantState(result) {
   if (!result || typeof result !== "object") {
     return;
   }
 
-  pushMessage(
-    "assistant",
-    JSON.stringify({
-      message,
-      boardState: createBoardStateSnapshot(result.boardState),
-      isComplete: result.isComplete === true,
-    })
-  );
+  pushMessage("assistant", JSON.stringify(result));
 }
 
 function resetConversation() {
@@ -249,6 +245,7 @@ async function handleAIResponse(result) {
   }
 
   updateLiveBoard(result.boardState);
+  recordAssistantState(result);
 
   if (result.isComplete === true) {
     return;
@@ -261,7 +258,6 @@ async function handleAIResponse(result) {
 
   showChatOverlay();
   appendMessage("assistant", assistantMessage);
-  recordAssistantState(result, assistantMessage);
 }
 
 async function requestAI() {
