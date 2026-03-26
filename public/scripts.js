@@ -24,6 +24,7 @@ const liveBoardFields = [
 ];
 
 const messageHistory = [];
+let currentBoardState = {};
 const loadingStages = [
   "Mapping mechanics, building a visual whiteboard, and preparing an HTML5 game shell.",
   "Synthesizing a first-pass gameplay loop and scene layout.",
@@ -117,7 +118,7 @@ function formatMessageContent(content) {
     .replace(/'/g, "&#39;");
 
   return escapedContent.replace(
-    /\*\*(.+?)\*\*/g,
+    /\*\*([\s\S]*?)\*\*/g,
     '<strong class="text-orange-400 font-bold drop-shadow-md">$1</strong>'
   );
 }
@@ -172,7 +173,7 @@ function appendMessage(role, content, options = {}) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
   const formattedContent = safeContent.replace(
-    /\*\*(.*?)\*\*/g,
+    /\*\*([\s\S]*?)\*\*/g,
     '<strong class="text-orange-400 font-bold drop-shadow-md">$1</strong>'
   );
 
@@ -242,6 +243,7 @@ function recordAssistantState(result) {
 
 function resetConversation() {
   messageHistory.length = 0;
+  currentBoardState = {};
   removeThinkingIndicator();
   updateLiveBoard();
   hideChatOverlay();
@@ -271,6 +273,16 @@ async function handleAIResponse(result) {
       "I received an unexpected response. Please try answering again so I can finish your game board."
     );
     return;
+  }
+
+  if (result.boardState) {
+    for (const key in result.boardState) {
+      if (result.boardState[key] !== "None" && result.boardState[key] !== "") {
+        currentBoardState[key] = result.boardState[key];
+      }
+    }
+
+    result.boardState = currentBoardState;
   }
 
   updateLiveBoard(result.boardState);

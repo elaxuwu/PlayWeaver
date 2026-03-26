@@ -29,19 +29,40 @@ const FIELD_QUESTIONS = {
   winCondition: "How does the player win?",
 };
 
+const CONFIRMATION_MESSAGE =
+  "All details are set! Are you ready to generate the game, or do you want to change anything?";
+const CONFIRMATION_PROMPT = `**${CONFIRMATION_MESSAGE}**`;
+
 const SYSTEM_PROMPT = `You are PlayWeaver, a highly enthusiastic, natural, and friendly game design partner.
 Your job is to gather exactly 8 parameters for a game concept: gameName, genre, coreMechanic, artStyle, setting, playerCharacter, enemies, winCondition.
 
-You must follow these rules on every single turn:
-1. Always output a strict JSON object and nothing else.
-2. The JSON must always use this exact shape:
+Always output a strict JSON object and nothing else.
+The JSON must always use this exact shape:
 {"message":"Your friendly response here","boardState":{"gameName":"None","genre":"None","coreMechanic":"None","artStyle":"None","setting":"None","playerCharacter":"None","enemies":"None","winCondition":"None"},"isComplete":false}
-3. Every boardState key must be present on every turn. Fill each value with the best extracted value from the full conversation so far. If a value is still missing or unclear, set it to "None".
-4. Be upbeat, natural, and collaborative. You may include one or two brief creative suggestions to help the user brainstorm.
-5. Ask for only ONE missing parameter at a time.
-6. Only bold the main question inside the "message" field. Do not bold suggestions, examples, encouragement, or any other text.
-7. If all 8 parameters are clearly defined, stop asking questions, set "isComplete" to true, and keep the message warm and celebratory.
-8. Never wrap the JSON in markdown or code fences. Never add commentary outside the JSON object.`;
+Every boardState key must be present on every turn.
+
+CRITICAL RULES:
+1. EXTRACT FIRST: Read the user's initial message carefully. If they already provided the genre, character, setting, etc., fill them into the JSON immediately. DO NOT ask for them.
+2. RETAIN MEMORY: Never overwrite a previously filled parameter with "None". Always output the current known values in your JSON.
+3. BOLD THE QUESTION: Wrap the actual question you are asking in double asterisks so it bolds. Example: **What setting do you want?**
+4. CONFIRMATION STEP: When all 8 parameters are filled, DO NOT set "isComplete": true yet. Instead, ask the user: **All details are set! Are you ready to generate the game, or do you want to change anything?**.
+5. COMPLETION: ONLY set "isComplete": true if all 8 are filled AND the user explicitly confirms they are ready. If they want to change something, keep "isComplete": false and update the JSON.
+
+Additional behavior rules:
+- Ask for only ONE missing parameter at a time.
+- If a field is still missing or unclear, set it to "None".
+- Only bold the main question inside the "message" field. Do not bold suggestions, examples, encouragement, or any other text.
+- Be upbeat, natural, and collaborative. You may include one or two brief creative suggestions to help the user brainstorm.
+- Never wrap the JSON in markdown or code fences. Never add commentary outside the JSON object.`;
+
+const READY_CONFIRMATION_PATTERNS = [
+  /^(yes|yep|yeah|sure|ok|okay|ready|proceed|continue|do it|go ahead)\b/i,
+  /\b(i am|i'm|im)\s+ready\b/i,
+  /\b(generate|build|make)\s+(it|the game)\b/i,
+  /\b(go ahead and|please)\s+(generate|build|make)\b/i,
+  /\b(looks good|sounds good|all set|no changes|nothing to change)\b/i,
+  /\b(let'?s go|let'?s do it)\b/i,
+];
 
 function normalizeBoardValue(value) {
   if (typeof value !== "string") {
@@ -52,7 +73,33 @@ function normalizeBoardValue(value) {
   return trimmedValue ? trimmedValue : "None";
 }
 
-function normalizeAssistantReply(rawReply) {
+function getLatestMessageContent(messageHistory, role) {
+  if (!Array.isArray(messageHistory)) {
+    return "";
+  }
+
+  for (let index = messageHistory.length - 1; index >= 0; index -= 1) {
+    const message = messageHistory[index];
+
+    if (message?.role === role && typeof message.content === "string") {
+      return message.content;
+    }
+  }
+
+  return "";
+}
+
+function userExplicitlyConfirmed(messageHistory) {
+  const latestUserMessage = getLatestMessageContent(messageHistory, "user").trim();
+
+  return READY_CONFIRMATION_PATTERNS.some((pattern) => pattern.test(latestUserMessage));
+}
+
+function assistantAskedForConfirmation(messageHistory) {
+  return getLatestMessageContent(messageHistory, "assistant").includes(CONFIRMATION_MESSAGE);
+}
+
+function normalizeAssistantReply(rawReply, options = {}) {
   const parsedReply = JSON.parse(rawReply);
   const sourceBoardState =
     parsedReply?.boardState && typeof parsedReply.boardState === "object"
@@ -67,18 +114,20 @@ function normalizeAssistantReply(rawReply) {
   const firstMissingField = BOARD_FIELDS.find(
     (field) => normalizedBoardState[field] === "None"
   );
+  const hasCompleteBoard = BOARD_FIELDS.every(
+    (field) => normalizedBoardState[field] !== "None"
+  );
+  const canComplete = options.allowCompletion === true && hasCompleteBoard;
   const fallbackMessage = firstMissingField
     ? `I am excited to build this with you. **${FIELD_QUESTIONS[firstMissingField]}**`
-    : "Everything is locked in and ready for the editor.";
+    : canComplete
+      ? "Everything is locked in and ready for the editor."
+      : CONFIRMATION_PROMPT;
 
   const message =
     typeof parsedReply?.message === "string" && parsedReply.message.trim()
       ? parsedReply.message.trim()
       : fallbackMessage;
-
-  const hasCompleteBoard = BOARD_FIELDS.every(
-    (field) => normalizedBoardState[field] !== "None"
-  );
 
   return {
     message,
@@ -86,7 +135,7 @@ function normalizeAssistantReply(rawReply) {
       ...EMPTY_BOARD_STATE,
       ...normalizedBoardState,
     },
-    isComplete: parsedReply?.isComplete === true && hasCompleteBoard,
+    isComplete: parsedReply?.isComplete === true && canComplete,
   };
 }
 
@@ -112,6 +161,10 @@ export async function onRequestPost(context) {
       });
     }
 
+    const allowCompletion =
+      assistantAskedForConfirmation(messageHistory) &&
+      userExplicitlyConfirmed(messageHistory);
+
     const completion = await client.chat.completions.create({
       model: "Qwen/Qwen2.5-7B-Instruct",
       response_format: { type: "json_object" },
@@ -125,7 +178,9 @@ export async function onRequestPost(context) {
     });
 
     const assistantReply = completion.choices?.[0]?.message?.content?.trim() || "";
-    const normalizedReply = normalizeAssistantReply(assistantReply);
+    const normalizedReply = normalizeAssistantReply(assistantReply, {
+      allowCompletion,
+    });
 
     return new Response(JSON.stringify(normalizedReply), {
       status: 200,
