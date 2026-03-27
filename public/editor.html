@@ -1,987 +1,115 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Editor</title>
+    <title>PlayWeaver Editor</title>
     <meta
       name="description"
-      content="Review and iterate on your PlayWeaver game concept inside an interactive editor."
+      content="Shape your PlayWeaver concept on a free-floating canvas and generate a playable prototype."
     />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      type="text/css"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/jsmind@0.5/style/jsmind.css"
     />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      type="text/javascript"
-      src="https://cdn.jsdelivr.net/npm/jsmind@0.5/js/jsmind.js"
-    ></script>
-    <style>
-      html,
-      body {
-        height: 100%;
-      }
-
-      body {
-        overscroll-behavior: none;
-      }
-
-      #inspector-panel {
-        min-width: 24rem;
-        overflow: visible;
-        transition:
-          width 180ms ease,
-          min-width 180ms ease,
-          border-color 180ms ease;
-      }
-
-      #inspector-panel[data-collapsed="true"] {
-        width: 0;
-        min-width: 0;
-        border-color: transparent;
-      }
-
-      .inspector-content {
-        width: 24rem;
-        min-width: 24rem;
-        height: 100%;
-        overflow: hidden;
-        transition:
-          opacity 180ms ease,
-          visibility 180ms ease;
-      }
-
-      #inspector-panel[data-collapsed="true"] .inspector-content {
-        opacity: 0;
-        pointer-events: none;
-        visibility: hidden;
-      }
-
-      #network-container,
-      #jsmind_container {
-        min-height: 0;
-      }
-
-      #jsmind_container {
-        overflow: hidden;
-      }
-
-      #jsmind_container jmnodes {
-        background: transparent !important;
-      }
-
-      #jsmind_container jmnode {
-        padding: 12px 16px !important;
-        border-radius: 8px !important;
-        max-width: 200px !important;
-        white-space: normal !important;
-        word-wrap: break-word !important;
-        line-height: 1.4 !important;
-        color: #ffffff !important;
-        background-color: #1e1e2f !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
-        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
-        transition:
-          transform 160ms ease,
-          box-shadow 160ms ease,
-          border-color 160ms ease,
-          background-color 160ms ease;
-      }
-
-      #jsmind_container jmnode.root {
-        background-color: #263449 !important;
-        border-color: rgba(95, 183, 255, 0.45) !important;
-        font-size: 0.98rem !important;
-        font-weight: 700 !important;
-      }
-
-      #jsmind_container jmnode[data-locked="true"] {
-        font-family:
-          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-          "Courier New", monospace !important;
-        font-size: 0.78rem !important;
-        background-color: #252a33 !important;
-        border-color: rgba(255, 255, 255, 0.12) !important;
-      }
-
-      #jsmind_container jmnode[data-node-kind="leaf"] {
-        cursor: text;
-      }
-
-      #jsmind_container jmnode[data-node-kind="leaf"]:hover,
-      #jsmind_container jmnode.root:hover {
-        transform: translateY(-2px);
-        border-color: rgba(95, 183, 255, 0.45) !important;
-        box-shadow:
-          0 14px 30px rgba(0, 0, 0, 0.28),
-          0 0 0 1px rgba(95, 183, 255, 0.12);
-      }
-
-      #jsmind_container jmnode.selected {
-        border-color: rgba(95, 183, 255, 0.6) !important;
-        box-shadow:
-          0 0 0 1px rgba(95, 183, 255, 0.3),
-          0 14px 30px rgba(0, 0, 0, 0.28) !important;
-      }
-
-      #jsmind_container jmexpander {
-        border-color: rgba(255, 255, 255, 0.18);
-      }
-    </style>
+    <link rel="stylesheet" href="styles.css" />
   </head>
-  <body class="flex h-screen w-screen overflow-hidden bg-[#080811] m-0 text-white font-sans">
-    <aside
-      id="inspector-panel"
-      data-collapsed="false"
-      class="relative flex flex-col w-96 h-full bg-[#10101b] border-r border-white/10 z-30"
-    >
-      <div class="inspector-content flex min-h-0 flex-1 flex-col">
-        <div class="border-b border-white/10 px-6 py-5">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/45">
-            Inspector
-          </p>
-          <h1 id="summary-name" class="mt-2 text-xl font-semibold text-white">Untitled Game</h1>
-          <p id="summary-genre" class="mt-1 text-sm leading-6 text-white/60">Not defined yet</p>
+  <body class="editor-app" data-page="editor">
+    <a href="index.html" class="playweaver-home" aria-label="Return to PlayWeaver home">
+      <span class="playweaver-home__mark">PW</span>
+      <span class="playweaver-home__wordmark">PlayWeaver</span>
+    </a>
+
+    <main class="editor-shell">
+      <section
+        id="board-canvas"
+        class="board-canvas"
+        aria-label="PlayWeaver node canvas"
+      >
+        <svg id="board-links" class="board-links" aria-hidden="true"></svg>
+        <div id="board-nodes" class="board-nodes"></div>
+      </section>
+
+      <section class="editor-card glass-card board-summary-card" aria-label="Editor controls">
+        <div class="editor-card__header">
+          <p class="editor-eyebrow">PlayWeaver Board</p>
+          <h1 id="summary-name" class="editor-heading">Untitled Game</h1>
+          <p id="summary-genre" class="editor-subheading">Not defined yet</p>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 border-b border-white/10 px-6 py-4">
-          <button
-            id="generate-btn"
-            type="button"
-            class="inline-flex items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-500/15 px-3 py-3 text-sm font-semibold text-white transition hover:border-cyan-400/50 hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-60"
-          >
+        <div class="editor-action-grid">
+          <button id="generate-btn" type="button" class="editor-button editor-button--primary">
             Generate
           </button>
-          <button
-            id="open-tab-btn"
-            type="button"
-            disabled
-            class="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
-          >
+          <button id="open-tab-btn" type="button" class="editor-button" disabled>
             Open Tab
           </button>
-          <button
-            id="add-value-btn"
-            type="button"
-            class="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10 hover:text-white"
-          >
-            Add Value
+          <button id="delete-selected-btn" type="button" class="editor-button">
+            Delete Selected
           </button>
-          <button
-            id="delete-selected-btn"
-            type="button"
-            class="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10 hover:text-white"
-          >
-            Delete Node
-          </button>
-          <button
-            id="cycle-color-btn"
-            type="button"
-            class="col-span-2 inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10 hover:text-white"
-          >
-            Cycle Color
+          <button id="center-board-btn" type="button" class="editor-button">
+            Center View
           </button>
         </div>
 
-        <div id="network-container" class="min-h-0 flex-1 p-4">
-          <div
-            id="jsmind_container"
-            class="h-full w-full rounded-2xl border border-white/10 bg-[#0b0b14]"
-          ></div>
+        <div class="editor-stats">
+          <div class="editor-stat">
+            <span class="editor-stat__label">Nodes</span>
+            <strong id="node-count" class="editor-stat__value">0</strong>
+          </div>
+          <div class="editor-stat">
+            <span class="editor-stat__label">Links</span>
+            <strong id="link-count" class="editor-stat__value">0</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="editor-card glass-card board-status-card" aria-label="Board guidance">
+        <div class="editor-card__header">
+          <p class="editor-eyebrow">Flow</p>
+        </div>
+        <p id="mindmap-status" class="editor-status-copy">
+          Left-drag the background to pan. Drag cards freely, right-click empty space to add a
+          note, right-click a node to start linking, and click a node to recolor it.
+        </p>
+        <p id="generate-status" class="editor-status-copy editor-status-copy--muted">
+          Ready to generate a playable prototype.
+        </p>
+      </section>
+
+      <section class="editor-card glass-card preview-card" aria-label="Prototype preview">
+        <div class="preview-card__header">
+          <div>
+            <p class="editor-eyebrow">Prototype</p>
+            <h2 class="preview-card__title">Live Preview</h2>
+          </div>
         </div>
 
-        <div class="border-t border-white/10 px-6 py-4">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45">
-            Status
-          </p>
-          <p id="mindmap-status" class="mt-2 text-sm leading-6 text-white/70">
-            Base schema nodes are locked. Double-click the title or any value leaf to edit text.
-          </p>
-          <p id="generate-status" class="mt-3 text-sm leading-6 text-white/55">
-            Ready to generate a playable prototype.
-          </p>
+        <div class="preview-frame-wrap">
+          <iframe id="game-frame" class="preview-frame" title="Generated PlayWeaver prototype"></iframe>
+
+          <div id="game-loading-overlay" class="game-loading-overlay" aria-hidden="true">
+            <div class="game-loading-chip">
+              <span id="game-loading-text">Generating...</span>
+            </div>
+          </div>
         </div>
+      </section>
+
+      <div id="node-color-menu" class="floating-palette hidden" role="dialog" aria-label="Node color picker">
+        <p class="floating-palette__label">Color</p>
+        <div id="node-color-swatches" class="floating-palette__swatches"></div>
       </div>
 
-      <button
-        id="inspector-toggle"
-        type="button"
-        aria-expanded="true"
-        aria-controls="inspector-panel"
-        class="absolute -right-12 bottom-8 flex h-12 w-12 items-center justify-center rounded-r-xl bg-[#10101b] border border-white/10 z-40"
-      >
-        &lt;
-      </button>
-    </aside>
+      <div id="canvas-context-menu" class="context-menu hidden" role="menu" aria-label="Canvas menu"></div>
 
-    <main class="flex-1 relative h-full bg-black z-10">
-      <iframe id="game-frame" class="w-full h-full border-0"></iframe>
-
-      <div
-        id="game-loading-overlay"
-        class="pointer-events-none absolute inset-0 hidden items-center justify-center bg-black/55 backdrop-blur-sm"
-      >
-        <div class="rounded-2xl border border-white/10 bg-[#10101b]/90 px-5 py-4 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
-          <span id="game-loading-text" class="text-sm font-medium text-white/90">
-            Generating...
-          </span>
-        </div>
+      <div id="link-hint" class="link-hint hidden" aria-live="polite">
+        Link mode is active. Click another node to connect it, or press Escape to cancel.
       </div>
     </main>
 
-    <script>
-      const STORAGE_KEY = "playweaverGameConfig";
-      const READY_STATUS = "Ready to generate a playable prototype.";
-      const FIELDS = [
-        { key: "gameName", label: "gameName" },
-        { key: "genre", label: "genre" },
-        { key: "coreMechanic", label: "coreMechanic" },
-        { key: "artStyle", label: "artStyle" },
-        { key: "setting", label: "setting" },
-        { key: "playerCharacter", label: "playerCharacter" },
-        { key: "enemies", label: "enemies" },
-        { key: "winCondition", label: "winCondition" },
-      ];
-      const BASE_FIELD_KEYS = FIELDS.filter((field) => field.key !== "gameName").map(
-        (field) => field.key
-      );
-      const LOCKED_NODE_IDS = new Set(BASE_FIELD_KEYS);
-      const DEFAULT_NODE_STYLE = {
-        bg: "#1e1e2f",
-        fg: "#ffffff",
-        border: "rgba(255, 255, 255, 0.12)",
-      };
-      const LOCKED_NODE_STYLE = {
-        bg: "#252a33",
-        fg: "#ffffff",
-        border: "rgba(255, 255, 255, 0.12)",
-      };
-      const COLOR_PRESETS = [
-        { bg: "#0f766e", fg: "#ecfeff", border: "#5eead4" },
-        { bg: "#4338ca", fg: "#eef2ff", border: "#a5b4fc" },
-        { bg: "#9a3412", fg: "#fff7ed", border: "#fdba74" },
-        { bg: "#9f1239", fg: "#fff1f2", border: "#fda4af" },
-      ];
-
-      const summaryName = document.getElementById("summary-name");
-      const summaryGenre = document.getElementById("summary-genre");
-      const generateBtn = document.getElementById("generate-btn");
-      const openTabBtn = document.getElementById("open-tab-btn");
-      const generateStatus = document.getElementById("generate-status");
-      const gameFrame = document.getElementById("game-frame");
-      const gameLoadingOverlay = document.getElementById("game-loading-overlay");
-      const gameLoadingText = document.getElementById("game-loading-text");
-      const inspectorPanel = document.getElementById("inspector-panel");
-      const inspectorToggle = document.getElementById("inspector-toggle");
-      const jsmindContainer = document.getElementById("jsmind_container");
-      const addValueBtn = document.getElementById("add-value-btn");
-      const deleteSelectedBtn = document.getElementById("delete-selected-btn");
-      const cycleColorBtn = document.getElementById("cycle-color-btn");
-      const mindmapStatus = document.getElementById("mindmap-status");
-
-      let currentConfig = null;
-      let currentGeneratedHtml = "";
-      let currentPrototypeUrl = null;
-      let isInspectorCollapsed = false;
-      let jm = null;
-      let nodeIdCounter = 0;
-      let mindMapListenersBound = false;
-      let nodeColorIndexes = new Map();
-
-      function getDefaultGameConfig() {
-        return FIELDS.reduce((config, field) => {
-          config[field.key] = field.key === "gameName" ? "Untitled Game" : "None";
-          return config;
-        }, {});
-      }
-
-      function normalizeStoredValue(value, fallback = "None") {
-        if (typeof value !== "string") {
-          return fallback;
-        }
-
-        const trimmedValue = value.trim();
-        return trimmedValue || fallback;
-      }
-
-      function normalizeGameConfig(config) {
-        const defaults = getDefaultGameConfig();
-
-        return FIELDS.reduce((normalizedConfig, field) => {
-          normalizedConfig[field.key] = normalizeStoredValue(
-            config?.[field.key],
-            defaults[field.key]
-          );
-          return normalizedConfig;
-        }, {});
-      }
-
-      function escapeHtml(value) {
-        return String(value)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      }
-
-      function topicToPlainText(topic) {
-        const container = document.createElement("div");
-        container.innerHTML = String(topic ?? "");
-        return container.textContent.trim();
-      }
-
-      function updateMindmapStatus(message) {
-        if (mindmapStatus) {
-          mindmapStatus.textContent = message;
-        }
-      }
-
-      function syncInspectorUI() {
-        if (!inspectorPanel || !inspectorToggle) {
-          return;
-        }
-
-        inspectorPanel.dataset.collapsed = String(isInspectorCollapsed);
-        inspectorToggle.textContent = isInspectorCollapsed ? ">" : "<";
-        inspectorToggle.setAttribute("aria-expanded", String(!isInspectorCollapsed));
-        inspectorToggle.setAttribute(
-          "aria-label",
-          isInspectorCollapsed ? "Show inspector" : "Hide inspector"
-        );
-
-        window.setTimeout(() => {
-          window.requestAnimationFrame(refreshNodeDecorations);
-        }, 200);
-      }
-
-      function setLoadingOverlay(isVisible, isRegenerating) {
-        if (!gameLoadingOverlay || !gameLoadingText) {
-          return;
-        }
-
-        gameLoadingText.textContent = isRegenerating ? "Regenerating..." : "Generating...";
-        gameLoadingOverlay.classList.toggle("hidden", !isVisible);
-        gameLoadingOverlay.classList.toggle("flex", isVisible);
-      }
-
-      function updateOpenInNewTabState() {
-        if (openTabBtn) {
-          openTabBtn.disabled = !currentGeneratedHtml;
-        }
-      }
-
-      function clearPrototypeUrl() {
-        if (!currentPrototypeUrl) {
-          return;
-        }
-
-        URL.revokeObjectURL(currentPrototypeUrl);
-        currentPrototypeUrl = null;
-      }
-
-      function updateMetadata(config) {
-        const safeGameName = normalizeStoredValue(config?.gameName, "Untitled Game");
-        const safeGenre = normalizeStoredValue(config?.genre, "Not defined yet");
-
-        document.title = `${safeGameName} | Editor`;
-        summaryName.textContent = safeGameName;
-        summaryGenre.textContent = safeGenre === "None" ? "Not defined yet" : safeGenre;
-      }
-
-      function buildMindMapData(parsedConfig) {
-        return {
-          meta: {
-            name: "PlayWeaver Game Design Mindmap",
-            author: "PlayWeaver",
-            version: "2.0",
-          },
-          format: "node_tree",
-          data: {
-            id: "root",
-            topic: escapeHtml(parsedConfig.gameName || "Untitled Game"),
-            isroot: true,
-            expanded: true,
-            children: BASE_FIELD_KEYS.map((key, index) => ({
-              id: key,
-              topic: escapeHtml(key),
-              expanded: true,
-              direction: index % 2 === 0 ? "right" : "left",
-              children: [
-                {
-                  id: `${key}_value`,
-                  topic: escapeHtml(parsedConfig[key]),
-                },
-              ],
-            })),
-          },
-        };
-      }
-
-      function getNodeById(nodeId) {
-        if (!jm || !nodeId || typeof jm.get_node !== "function") {
-          return null;
-        }
-
-        return jm.get_node(nodeId);
-      }
-
-      function getNodeId(value) {
-        if (!value) {
-          return null;
-        }
-
-        return typeof value === "string" ? value : value.id || null;
-      }
-
-      function getParentNode(node) {
-        if (!node?.parent) {
-          return null;
-        }
-
-        return typeof node.parent === "string" ? getNodeById(node.parent) : node.parent;
-      }
-
-      function isLockedNodeId(nodeId) {
-        return LOCKED_NODE_IDS.has(nodeId);
-      }
-
-      function isLeafNode(node) {
-        return !Array.isArray(node?.children) || node.children.length === 0;
-      }
-
-      function canEditNode(node) {
-        if (!node) {
-          return false;
-        }
-
-        if (node.id === "root") {
-          return true;
-        }
-
-        return !isLockedNodeId(node.id) && isLeafNode(node);
-      }
-
-      function getNodeElement(nodeId) {
-        if (!nodeId || !jsmindContainer) {
-          return null;
-        }
-
-        return jsmindContainer.querySelector(`jmnode[nodeid="${nodeId}"]`);
-      }
-
-      function applyNodeVisualState(node) {
-        const element = getNodeElement(node.id);
-
-        if (!element) {
-          return;
-        }
-
-        const locked = isLockedNodeId(node.id);
-        const leaf = isLeafNode(node);
-        const selectedIndex = nodeColorIndexes.get(node.id);
-        const style =
-          typeof selectedIndex === "number"
-            ? COLOR_PRESETS[selectedIndex]
-            : locked
-              ? LOCKED_NODE_STYLE
-              : DEFAULT_NODE_STYLE;
-
-        element.dataset.locked = String(locked);
-        element.dataset.nodeKind = node.id === "root" ? "root" : leaf ? "leaf" : "branch";
-        element.style.backgroundColor = style.bg;
-        element.style.color = style.fg;
-        element.style.borderColor = style.border;
-      }
-
-      function walkTree(node, callback) {
-        callback(node);
-
-        if (Array.isArray(node.children)) {
-          node.children.forEach((childNode) => walkTree(childNode, callback));
-        }
-      }
-
-      function refreshNodeDecorations() {
-        if (!jm) {
-          return;
-        }
-
-        const treeData = jm.get_data("node_tree");
-        const rootNode = treeData?.data;
-
-        if (!rootNode) {
-          return;
-        }
-
-        walkTree(rootNode, applyNodeVisualState);
-      }
-
-      function installMindMapEditingGuards() {
-        if (!jm) {
-          return;
-        }
-
-        const originalBeginEdit = jm.begin_edit.bind(jm);
-        jm.begin_edit = function wrappedBeginEdit(node) {
-          const targetNode = node || jm.get_selected_node();
-
-          if (!targetNode) {
-            return false;
-          }
-
-          if (!canEditNode(targetNode)) {
-            updateMindmapStatus(
-              "Base schema nodes are locked. Double-click the title or any value leaf to edit text."
-            );
-            return false;
-          }
-
-          return originalBeginEdit(targetNode);
-        };
-      }
-
-      function handleMindMapDoubleClick(event) {
-        if (!jm) {
-          return;
-        }
-
-        const nodeElement = event.target.closest("jmnode");
-
-        if (!nodeElement) {
-          return;
-        }
-
-        const nodeId = nodeElement.getAttribute("nodeid");
-        const targetNode = getNodeById(nodeId);
-
-        if (!targetNode) {
-          return;
-        }
-
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        jm.select_node(nodeId);
-
-        if (!canEditNode(targetNode)) {
-          updateMindmapStatus(
-            "Base schema nodes are locked. Double-click the title or any value leaf to edit text."
-          );
-          return;
-        }
-
-        window.setTimeout(() => {
-          if (jm) {
-            jm.begin_edit(targetNode);
-          }
-        }, 0);
-      }
-
-      function bindMindMapListeners() {
-        installMindMapEditingGuards();
-
-        if (mindMapListenersBound) {
-          return;
-        }
-
-        jsmindContainer.addEventListener("dblclick", handleMindMapDoubleClick, true);
-        jsmindContainer.addEventListener("click", () => {
-          window.requestAnimationFrame(refreshNodeDecorations);
-        });
-
-        mindMapListenersBound = true;
-      }
-
-      function initMindMap(parsedConfig) {
-        if (!jsmindContainer) {
-          return;
-        }
-
-        if (typeof jsMind !== "function") {
-          jsmindContainer.innerHTML =
-            '<div class="flex h-full items-center justify-center text-sm text-white/55">jsMind failed to load.</div>';
-          jm = null;
-          return;
-        }
-
-        const mindData = buildMindMapData(parsedConfig);
-        jsmindContainer.innerHTML = "";
-        nodeColorIndexes = new Map();
-        jm = new jsMind({
-          container: "jsmind_container",
-          theme: "dark",
-          editable: true,
-          mode: "full",
-          support_html: true,
-          view: {
-            hmargin: 80,
-            vmargin: 48,
-            line_width: 2,
-            line_color: "rgba(255,255,255,0.18)",
-          },
-          layout: {
-            hspace: 72,
-            vspace: 24,
-            pspace: 14,
-          },
-        });
-        jm.show(mindData);
-        bindMindMapListeners();
-        window.requestAnimationFrame(refreshNodeDecorations);
-        updateMindmapStatus(
-          "Base schema nodes are locked. Double-click the title or any value leaf to edit text."
-        );
-      }
-
-      function renderBoard(config) {
-        currentConfig = normalizeGameConfig(config);
-        updateMetadata(currentConfig);
-        initMindMap(currentConfig);
-
-        if (generateStatus && !generateStatus.textContent.trim()) {
-          generateStatus.textContent = READY_STATUS;
-        }
-      }
-
-      function collectLeafTopics(node) {
-        const children = Array.isArray(node?.children) ? node.children : [];
-
-        if (!children.length) {
-          const normalizedTopic = topicToPlainText(node?.topic);
-
-          if (!normalizedTopic || normalizedTopic.toLowerCase() === "none") {
-            return [];
-          }
-
-          return [normalizedTopic];
-        }
-
-        return children.flatMap((childNode) => collectLeafTopics(childNode));
-      }
-
-      function getUpdatedGameConfigFromMindMap() {
-        if (!jm || !currentConfig) {
-          return currentConfig;
-        }
-
-        const treeData = jm.get_data("node_tree");
-        const rootNode = treeData?.data;
-
-        if (!rootNode) {
-          return currentConfig;
-        }
-
-        const nextConfig = { ...currentConfig };
-        const rootTopic = topicToPlainText(rootNode.topic);
-        nextConfig.gameName = rootTopic || currentConfig.gameName || "Untitled Game";
-
-        const categoryNodes = Array.isArray(rootNode.children) ? rootNode.children : [];
-        const categoryMap = new Map(categoryNodes.map((node) => [node.id, node]));
-
-        BASE_FIELD_KEYS.forEach((key) => {
-          const categoryNode = categoryMap.get(key);
-          const collectedValues = categoryNode
-            ? Array.from(new Set(collectLeafTopics(categoryNode)))
-            : [];
-
-          nextConfig[key] = collectedValues.length
-            ? collectedValues.join(", ")
-            : currentConfig[key] || "None";
-        });
-
-        return normalizeGameConfig(nextConfig);
-      }
-
-      function generateNodeId(prefix) {
-        nodeIdCounter += 1;
-        return `${prefix}_${Date.now()}_${nodeIdCounter}`;
-      }
-
-      function addValueToSelected() {
-        if (!jm) {
-          return;
-        }
-
-        const selectedNode = jm.get_selected_node();
-
-        if (!selectedNode) {
-          updateMindmapStatus("Select a variable or value node first.");
-          return;
-        }
-
-        if (selectedNode.id === "root") {
-          updateMindmapStatus("Select one of the base variable nodes before adding a value.");
-          return;
-        }
-
-        let parentNode = null;
-
-        if (BASE_FIELD_KEYS.includes(selectedNode.id)) {
-          parentNode = selectedNode;
-        } else {
-          parentNode = getParentNode(selectedNode);
-        }
-
-        if (!parentNode) {
-          updateMindmapStatus("Unable to find a valid parent for the new value.");
-          return;
-        }
-
-        const newNodeId = generateNodeId(parentNode.id);
-        jm.add_node(parentNode, newNodeId, escapeHtml("New value"));
-        jm.select_node(newNodeId);
-        window.requestAnimationFrame(() => {
-          refreshNodeDecorations();
-          const createdNode = getNodeById(newNodeId);
-
-          if (createdNode) {
-            jm.begin_edit(createdNode);
-          }
-        });
-        updateMindmapStatus(`Added a new value under ${getNodeId(parentNode)}.`);
-      }
-
-      function purgeNodeColorState(node) {
-        nodeColorIndexes.delete(node.id);
-
-        if (Array.isArray(node.children)) {
-          node.children.forEach((childNode) => purgeNodeColorState(childNode));
-        }
-      }
-
-      function deleteSelectedNode() {
-        if (!jm) {
-          return;
-        }
-
-        const selectedNode = jm.get_selected_node();
-
-        if (!selectedNode) {
-          updateMindmapStatus("Select a value node before deleting.");
-          return;
-        }
-
-        if (selectedNode.id === "root" || isLockedNodeId(selectedNode.id)) {
-          updateMindmapStatus("The title and base schema nodes cannot be deleted.");
-          return;
-        }
-
-        const parentNode = getParentNode(selectedNode);
-        purgeNodeColorState(selectedNode);
-        jm.remove_node(selectedNode);
-
-        if (parentNode) {
-          jm.select_node(parentNode.id);
-        }
-
-        window.requestAnimationFrame(refreshNodeDecorations);
-        updateMindmapStatus("Removed the selected value branch.");
-      }
-
-      function cycleColorForSelected() {
-        if (!jm) {
-          return;
-        }
-
-        const selectedNode = jm.get_selected_node();
-
-        if (!selectedNode) {
-          updateMindmapStatus("Select a node before cycling colors.");
-          return;
-        }
-
-        const currentIndex = nodeColorIndexes.has(selectedNode.id)
-          ? nodeColorIndexes.get(selectedNode.id)
-          : -1;
-        const nextIndex = (currentIndex + 1) % COLOR_PRESETS.length;
-
-        nodeColorIndexes.set(selectedNode.id, nextIndex);
-        refreshNodeDecorations();
-        updateMindmapStatus(`Updated the node color for ${selectedNode.id}.`);
-      }
-
-      function getPrototypeErrorMessage(responseBody, status) {
-        if (!responseBody) {
-          return `Prototype request failed with status ${status}.`;
-        }
-
-        try {
-          const parsedBody = JSON.parse(responseBody);
-
-          if (typeof parsedBody?.error === "string" && parsedBody.error.trim()) {
-            return parsedBody.error.trim();
-          }
-        } catch (error) {
-          console.error("Failed to parse prototype error payload:", error);
-        }
-
-        return responseBody;
-      }
-
-      function openPrototypeInNewTab() {
-        if (!currentGeneratedHtml) {
-          if (generateStatus) {
-            generateStatus.textContent = "Generate a prototype before opening a new tab.";
-          }
-          return;
-        }
-
-        clearPrototypeUrl();
-
-        const htmlBlob = new Blob([currentGeneratedHtml], { type: "text/html" });
-        const prototypeUrl = URL.createObjectURL(htmlBlob);
-        currentPrototypeUrl = prototypeUrl;
-        const openedWindow = window.open(prototypeUrl, "_blank", "noopener,noreferrer");
-
-        if (!openedWindow) {
-          if (generateStatus) {
-            generateStatus.textContent =
-              "The new tab was blocked. Please allow popups and try again.";
-          }
-
-          clearPrototypeUrl();
-          return;
-        }
-
-        window.setTimeout(() => {
-          if (currentPrototypeUrl === prototypeUrl) {
-            clearPrototypeUrl();
-          } else {
-            URL.revokeObjectURL(prototypeUrl);
-          }
-        }, 60000);
-      }
-
-      async function handleGeneratePrototype() {
-        if (!currentConfig) {
-          currentConfig = normalizeGameConfig(getDefaultGameConfig());
-        }
-
-        const updatedGameConfig = getUpdatedGameConfigFromMindMap();
-        const isRegenerating = Boolean(currentGeneratedHtml);
-
-        currentConfig = updatedGameConfig;
-        updateMetadata(currentConfig);
-
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedGameConfig));
-        } catch (error) {
-          console.error("Failed to persist updated game config:", error);
-        }
-
-        if (generateBtn) {
-          generateBtn.disabled = true;
-        }
-
-        if (openTabBtn) {
-          openTabBtn.disabled = true;
-        }
-
-        setLoadingOverlay(true, isRegenerating);
-
-        if (generateStatus) {
-          generateStatus.textContent = isRegenerating
-            ? "Regenerating prototype from the latest mindmap..."
-            : "Generating prototype from the latest mindmap...";
-        }
-
-        try {
-          const response = await fetch("/generate", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ gameConfig: updatedGameConfig }),
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(getPrototypeErrorMessage(errorText, response.status));
-          }
-
-          currentGeneratedHtml = await response.text();
-          updateOpenInNewTabState();
-
-          if (gameFrame) {
-            gameFrame.srcdoc = currentGeneratedHtml;
-          }
-
-          if (generateStatus) {
-            generateStatus.textContent = "Prototype ready. Play it in the viewport.";
-          }
-        } catch (error) {
-          console.error("Failed to generate prototype:", error);
-          if (generateStatus) {
-            generateStatus.textContent =
-              error instanceof Error && error.message
-                ? `Prototype generation failed: ${error.message}`
-                : "Something went wrong while generating the prototype. Please try again.";
-          }
-        } finally {
-          if (generateBtn) {
-            generateBtn.disabled = false;
-          }
-
-          setLoadingOverlay(false, isRegenerating);
-          updateOpenInNewTabState();
-        }
-      }
-
-      function loadInitialConfig() {
-        try {
-          const rawConfig = localStorage.getItem(STORAGE_KEY);
-
-          if (!rawConfig) {
-            return getDefaultGameConfig();
-          }
-
-          const parsedConfig = JSON.parse(rawConfig);
-
-          if (!parsedConfig || typeof parsedConfig !== "object") {
-            return getDefaultGameConfig();
-          }
-
-          return parsedConfig;
-        } catch (error) {
-          console.error("Failed to read playweaverGameConfig:", error);
-          return getDefaultGameConfig();
-        }
-      }
-
-      if (generateBtn) {
-        generateBtn.addEventListener("click", handleGeneratePrototype);
-      }
-
-      if (openTabBtn) {
-        openTabBtn.addEventListener("click", openPrototypeInNewTab);
-      }
-
-      if (inspectorToggle) {
-        inspectorToggle.addEventListener("click", () => {
-          isInspectorCollapsed = !isInspectorCollapsed;
-          syncInspectorUI();
-        });
-      }
-
-      if (addValueBtn) {
-        addValueBtn.addEventListener("click", addValueToSelected);
-      }
-
-      if (deleteSelectedBtn) {
-        deleteSelectedBtn.addEventListener("click", deleteSelectedNode);
-      }
-
-      if (cycleColorBtn) {
-        cycleColorBtn.addEventListener("click", cycleColorForSelected);
-      }
-
-      window.addEventListener("beforeunload", clearPrototypeUrl);
-
-      syncInspectorUI();
-      updateOpenInNewTabState();
-      renderBoard(loadInitialConfig());
-    </script>
+    <script src="scripts.js"></script>
   </body>
 </html>

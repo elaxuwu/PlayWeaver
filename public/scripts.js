@@ -396,3 +396,9 @@ document.addEventListener("keydown", (event) => {
 });
 
 updateLiveBoard();
+
+if (document.body?.dataset?.page === "editor") {
+  const editorScript = document.createElement("script");
+  editorScript.src = "editor.js";
+  document.body.appendChild(editorScript);
+}
