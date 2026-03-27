@@ -40,6 +40,23 @@
         background: rgba(255, 255, 255, 0.14);
         background-clip: padding-box;
       }
+
+      .inspector-panel {
+        transition:
+          width 180ms ease,
+          border-color 180ms ease,
+          opacity 180ms ease;
+      }
+
+      .inspector-panel[data-collapsed="true"] {
+        width: 0;
+        border-color: transparent;
+      }
+
+      .inspector-panel[data-collapsed="true"] .inspector-inner {
+        opacity: 0;
+        pointer-events: none;
+      }
     </style>
     <script>
       tailwind = window.tailwind || {};
@@ -76,8 +93,76 @@
   <body class="editor-app h-screen w-screen overflow-hidden bg-surface-950 font-body text-white">
     <div class="flex h-screen w-screen overflow-hidden bg-surface-950">
       <section id="board-section" class="hidden min-h-0 min-w-0 flex-1 flex">
+        <aside
+          id="inspector-panel"
+          data-collapsed="false"
+          class="inspector-panel flex h-full w-96 shrink-0 flex-col overflow-hidden border-r border-white/10 bg-surface-900"
+        >
+          <div class="inspector-inner flex min-h-0 flex-1 flex-col">
+            <div class="border-b border-white/10 px-5 py-4">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">
+                Design Board Inspector
+              </p>
+              <h2 class="mt-2 text-lg font-semibold text-white">Game Parameters</h2>
+              <p class="mt-1 text-sm leading-6 text-white/55">
+                Review the extracted concept fields here, then regenerate the prototype in the
+                playtest window.
+              </p>
+            </div>
+
+            <div class="inspector-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              <section class="rounded-lg border border-white/10 bg-surface-925 p-4 shadow-inset">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/40">
+                  Snapshot
+                </p>
+                <div class="mt-3 space-y-3">
+                  <div>
+                    <p class="text-xs uppercase tracking-[0.18em] text-white/35">Game Name</p>
+                    <p id="summary-name" class="mt-1 text-base font-semibold text-white">
+                      Untitled Game
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-xs uppercase tracking-[0.18em] text-white/35">Genre</p>
+                    <p id="summary-genre" class="mt-1 text-sm text-white/75">Not defined yet</p>
+                  </div>
+                </div>
+              </section>
+
+              <div class="mt-4">
+                <p class="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/35">
+                  Board Fields
+                </p>
+                <div id="board-grid" class="mt-3 grid gap-3"></div>
+              </div>
+
+              <div class="mt-6 rounded-lg border border-white/10 bg-black/20 p-4 text-sm leading-6 text-white/55">
+                Generated prototypes render inside the iframe on the left. Update the saved board
+                details from the main flow and regenerate any time you want a new build.
+              </div>
+
+              <a
+                href="/index.html"
+                class="mt-6 inline-flex w-full items-center justify-center rounded-md border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
+              >
+                Start New Concept
+              </a>
+            </div>
+          </div>
+        </aside>
+
         <div class="flex min-h-0 min-w-0 flex-1 flex-col">
           <div class="flex h-14 shrink-0 items-center gap-4 border-b border-white/10 bg-surface-925 px-4">
+            <button
+              id="inspector-toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="inspector-panel"
+              class="inline-flex shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/65 transition hover:bg-white/10 hover:text-white"
+            >
+              Hide Inspector
+            </button>
+
             <a
               href="/index.html"
               class="inline-flex shrink-0 items-center rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55 transition hover:bg-white/10 hover:text-white"
@@ -117,58 +202,6 @@
             </div>
           </div>
         </div>
-
-        <aside class="flex h-full w-96 shrink-0 flex-col border-l border-white/10 bg-surface-900">
-          <div class="border-b border-white/10 px-5 py-4">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">
-              Design Board Inspector
-            </p>
-            <h2 class="mt-2 text-lg font-semibold text-white">Game Parameters</h2>
-            <p class="mt-1 text-sm leading-6 text-white/55">
-              Review the extracted concept fields here, then regenerate the prototype in the
-              playtest window.
-            </p>
-          </div>
-
-          <div class="inspector-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4">
-            <section class="rounded-lg border border-white/10 bg-surface-925 p-4 shadow-inset">
-              <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/40">
-                Snapshot
-              </p>
-              <div class="mt-3 space-y-3">
-                <div>
-                  <p class="text-xs uppercase tracking-[0.18em] text-white/35">Game Name</p>
-                  <p id="summary-name" class="mt-1 text-base font-semibold text-white">
-                    Untitled Game
-                  </p>
-                </div>
-                <div>
-                  <p class="text-xs uppercase tracking-[0.18em] text-white/35">Genre</p>
-                  <p id="summary-genre" class="mt-1 text-sm text-white/75">Not defined yet</p>
-                </div>
-              </div>
-            </section>
-
-            <div class="mt-4">
-              <p class="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/35">
-                Board Fields
-              </p>
-              <div id="board-grid" class="mt-3 grid gap-3"></div>
-            </div>
-
-            <div class="mt-6 rounded-lg border border-white/10 bg-black/20 p-4 text-sm leading-6 text-white/55">
-              Generated prototypes render inside the iframe on the left. Update the saved board
-              details from the main flow and regenerate any time you want a new build.
-            </div>
-
-            <a
-              href="/index.html"
-              class="mt-6 inline-flex w-full items-center justify-center rounded-md border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
-            >
-              Start New Concept
-            </a>
-          </div>
-        </aside>
       </section>
 
       <section id="empty-state" class="hidden flex flex-1 items-center justify-center p-8">
@@ -216,7 +249,20 @@
       const generateBtn = document.getElementById("generate-btn");
       const generateStatus = document.getElementById("generate-status");
       const gameFrame = document.getElementById("game-frame");
+      const inspectorPanel = document.getElementById("inspector-panel");
+      const inspectorToggle = document.getElementById("inspector-toggle");
       let currentConfig = null;
+      let isInspectorCollapsed = false;
+
+      function syncInspectorUI() {
+        if (!inspectorPanel || !inspectorToggle) {
+          return;
+        }
+
+        inspectorPanel.dataset.collapsed = String(isInspectorCollapsed);
+        inspectorToggle.textContent = isInspectorCollapsed ? "Show Inspector" : "Hide Inspector";
+        inspectorToggle.setAttribute("aria-expanded", String(!isInspectorCollapsed));
+      }
 
       function showEmptyState() {
         boardSection.classList.add("hidden");
@@ -353,6 +399,15 @@
       if (generateBtn) {
         generateBtn.addEventListener("click", handleGeneratePrototype);
       }
+
+      if (inspectorToggle) {
+        inspectorToggle.addEventListener("click", () => {
+          isInspectorCollapsed = !isInspectorCollapsed;
+          syncInspectorUI();
+        });
+      }
+
+      syncInspectorUI();
 
       try {
         const rawConfig = localStorage.getItem(STORAGE_KEY);
