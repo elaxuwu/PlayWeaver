@@ -13,8 +13,8 @@ function stripCodeFences(content) {
 
 export async function onRequestPost(context) {
   try {
-    if (!context.env.OPENAI_API_KEY) {
-      throw new Error("Missing OPENAI_API_KEY environment variable");
+    if (!context.env.OPENROUTER_API_KEY) {
+      throw new Error("Missing OPENROUTER_API_KEY environment variable");
     }
 
     const { gameConfig } = await context.request.json();
@@ -29,11 +29,16 @@ export async function onRequestPost(context) {
     }
 
     const client = new OpenAI({
-      apiKey: context.env.OPENAI_API_KEY,
+      apiKey: context.env.OPENROUTER_API_KEY,
+      baseURL: "https://openrouter.ai/api/v1",
+      defaultHeaders: {
+        "HTTP-Referer": "https://playweaver.app",
+        "X-Title": "PlayWeaver Game Generator",
+      },
     });
 
     const completion = await client.chat.completions.create({
-      model: "gpt-5.4-nano-2026-03-17",
+      model: "openai/gpt-5.4-nano",
       reasoning_effort: "high",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
