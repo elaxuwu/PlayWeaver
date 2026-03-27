@@ -8,44 +8,60 @@
       name="description"
       content="Review and iterate on your PlayWeaver game concept inside an interactive editor."
     />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
     <link
       type="text/css"
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/jsmind@0.5/style/jsmind.css"
     />
-    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      type="text/javascript"
+      src="https://cdn.jsdelivr.net/npm/jsmind@0.5/js/jsmind.js"
+    ></script>
     <style>
       html,
       body {
         height: 100%;
       }
 
-      body.editor-app {
-        margin: 0;
-        background: #171b22;
+      body {
+        overscroll-behavior: none;
       }
 
-      .inspector-panel {
+      #inspector-panel {
+        min-width: 24rem;
+        overflow: visible;
         transition:
           width 180ms ease,
-          border-color 180ms ease,
-          opacity 180ms ease;
+          min-width 180ms ease,
+          border-color 180ms ease;
       }
 
-      .inspector-panel[data-collapsed="true"] {
+      #inspector-panel[data-collapsed="true"] {
         width: 0;
+        min-width: 0;
         border-color: transparent;
       }
 
-      .inspector-panel[data-collapsed="true"] .inspector-inner {
+      .inspector-content {
+        width: 24rem;
+        min-width: 24rem;
+        height: 100%;
+        overflow: hidden;
+        transition:
+          opacity 180ms ease,
+          visibility 180ms ease;
+      }
+
+      #inspector-panel[data-collapsed="true"] .inspector-content {
         opacity: 0;
         pointer-events: none;
+        visibility: hidden;
+      }
+
+      #network-container,
+      #jsmind_container {
+        min-height: 0;
       }
 
       #jsmind_container {
@@ -82,7 +98,9 @@
       }
 
       #jsmind_container jmnode[data-locked="true"] {
-        font-family: "JetBrains Mono", monospace !important;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+          "Courier New", monospace !important;
         font-size: 0.78rem !important;
         background-color: #252a33 !important;
         border-color: rgba(255, 255, 255, 0.12) !important;
@@ -92,7 +110,8 @@
         cursor: text;
       }
 
-      #jsmind_container jmnode[data-node-kind="leaf"]:hover {
+      #jsmind_container jmnode[data-node-kind="leaf"]:hover,
+      #jsmind_container jmnode.root:hover {
         transform: translateY(-2px);
         border-color: rgba(95, 183, 255, 0.45) !important;
         box-shadow:
@@ -111,224 +130,107 @@
         border-color: rgba(255, 255, 255, 0.18);
       }
     </style>
-    <script>
-      tailwind = window.tailwind || {};
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              surface: {
-                900: "#252a33",
-                925: "#1d222b",
-                950: "#171b22",
-                975: "#101319",
-              },
-              accent: {
-                400: "#5fb7ff",
-                500: "#3f89ff",
-              },
-            },
-            fontFamily: {
-              display: ["IBM Plex Sans", "sans-serif"],
-              body: ["IBM Plex Sans", "sans-serif"],
-              mono: ["JetBrains Mono", "monospace"],
-            },
-            boxShadow: {
-              panel: "0 24px 60px rgba(0, 0, 0, 0.35)",
-              inset: "inset 0 1px 0 rgba(255, 255, 255, 0.04)",
-            },
-          },
-        },
-      };
-    </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      type="text/javascript"
-      src="https://cdn.jsdelivr.net/npm/jsmind@0.5/js/jsmind.js"
-    ></script>
   </head>
-  <body class="editor-app h-screen w-screen overflow-hidden bg-surface-950 font-body text-white">
-    <div class="flex h-screen w-screen overflow-hidden bg-surface-950">
-      <section id="board-section" class="hidden min-h-0 min-w-0 flex-1 flex-row">
-        <div id="sidebar-shell" class="relative flex h-full shrink-0">
-          <aside
-            id="inspector-panel"
-            data-collapsed="false"
-            class="inspector-panel flex h-full w-[400px] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-surface-900"
-          >
-            <div class="inspector-inner flex min-h-0 flex-1 flex-col">
-              <div class="border-b border-white/10 px-5 py-4">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">
-                  Design Board Inspector
-                </p>
-                <h2 class="mt-2 text-xl font-semibold text-white">Interactive Mindmap</h2>
-                <p class="mt-1 text-sm leading-6 text-white/55">
-                  Locked nodes protect the JSON schema. Edit only the value leaves, then regenerate
-                  the prototype from the updated map.
-                </p>
-              </div>
+  <body class="flex h-screen w-screen overflow-hidden bg-[#080811] m-0 text-white font-sans">
+    <aside
+      id="inspector-panel"
+      data-collapsed="false"
+      class="relative flex flex-col w-96 h-full bg-[#10101b] border-r border-white/10 z-30"
+    >
+      <div class="inspector-content flex min-h-0 flex-1 flex-col">
+        <div class="border-b border-white/10 px-6 py-5">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/45">
+            Inspector
+          </p>
+          <h1 id="summary-name" class="mt-2 text-xl font-semibold text-white">Untitled Game</h1>
+          <p id="summary-genre" class="mt-1 text-sm leading-6 text-white/60">Not defined yet</p>
+        </div>
 
-              <div class="grid grid-cols-2 gap-3 border-b border-white/10 px-5 py-4">
-                <div class="rounded-xl border border-white/10 bg-surface-925 p-3 shadow-inset">
-                  <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">
-                    Game Name
-                  </p>
-                  <p id="summary-name" class="mt-2 text-sm font-semibold text-white">
-                    Untitled Game
-                  </p>
-                </div>
-                <div class="rounded-xl border border-white/10 bg-surface-925 p-3 shadow-inset">
-                  <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">
-                    Genre
-                  </p>
-                  <p id="summary-genre" class="mt-2 text-sm font-semibold text-white/85">
-                    Not defined yet
-                  </p>
-                </div>
-              </div>
-
-              <div class="border-b border-white/10 px-5 py-4">
-                <div class="grid grid-cols-1 gap-2">
-                  <button
-                    id="add-value-btn"
-                    type="button"
-                    class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-semibold text-white/85 transition hover:bg-white/10 hover:text-white"
-                  >
-                    + Add Value to Selected
-                  </button>
-                  <button
-                    id="delete-selected-btn"
-                    type="button"
-                    class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-semibold text-white/85 transition hover:bg-white/10 hover:text-white"
-                  >
-                    Delete Selected
-                  </button>
-                  <button
-                    id="cycle-color-btn"
-                    type="button"
-                    class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-semibold text-white/85 transition hover:bg-white/10 hover:text-white"
-                  >
-                    Cycle Color
-                  </button>
-                </div>
-              </div>
-
-              <div class="min-h-0 flex-1 p-5">
-                <div
-                  id="jsmind_container"
-                  class="h-full min-h-[560px] rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(95,183,255,0.10),_transparent_34%),linear-gradient(180deg,_rgba(255,255,255,0.05),_rgba(255,255,255,0.02))]"
-                ></div>
-              </div>
-
-              <div class="border-t border-white/10 px-5 py-4">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">
-                  Mindmap Status
-                </p>
-                <p id="mindmap-status" class="mt-2 text-sm leading-6 text-white/62">
-                  Select a value node to rename it, add siblings, remove branches, or cycle colors.
-                </p>
-              </div>
-            </div>
-          </aside>
-
+        <div class="grid grid-cols-2 gap-3 border-b border-white/10 px-6 py-4">
           <button
-            id="inspector-toggle"
+            id="generate-btn"
             type="button"
-            aria-expanded="true"
-            aria-controls="inspector-panel"
-            class="absolute bottom-5 right-0 z-20 flex h-11 w-11 translate-x-1/2 items-center justify-center rounded-full border border-white/10 bg-surface-900 text-lg font-semibold text-white/80 shadow-panel transition hover:bg-surface-925 hover:text-white"
+            class="inline-flex items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-500/15 px-3 py-3 text-sm font-semibold text-white transition hover:border-cyan-400/50 hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            &lt;
+            Generate
+          </button>
+          <button
+            id="open-tab-btn"
+            type="button"
+            disabled
+            class="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            Open Tab
+          </button>
+          <button
+            id="add-value-btn"
+            type="button"
+            class="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10 hover:text-white"
+          >
+            Add Value
+          </button>
+          <button
+            id="delete-selected-btn"
+            type="button"
+            class="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10 hover:text-white"
+          >
+            Delete Node
+          </button>
+          <button
+            id="cycle-color-btn"
+            type="button"
+            class="col-span-2 inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10 hover:text-white"
+          >
+            Cycle Color
           </button>
         </div>
 
-        <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div class="flex h-14 shrink-0 items-center gap-4 border-b border-white/10 bg-surface-925 px-4">
-            <a
-              href="/index.html"
-              class="inline-flex shrink-0 items-center rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55 transition hover:bg-white/10 hover:text-white"
-            >
-              PlayWeaver
-            </a>
-
-            <div class="min-w-0 flex-1">
-              <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">
-                Playtest Window
-              </p>
-              <h1 id="board-title" class="truncate text-sm font-semibold text-white/90">
-                Untitled Game
-              </h1>
-            </div>
-
-            <p id="generate-status" class="min-w-0 flex-1 truncate text-sm text-white/55">
-              Ready to generate a playable prototype.
-            </p>
-
-            <button
-              id="generate-btn"
-              type="button"
-              class="inline-flex shrink-0 items-center justify-center rounded-md border border-accent-400/30 bg-accent-500/20 px-4 py-2 text-sm font-semibold text-white transition hover:border-accent-400/50 hover:bg-accent-500/30 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Generate Prototype
-            </button>
-
-            <button
-              id="open-tab-btn"
-              type="button"
-              disabled
-              class="inline-flex shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              Open in New Tab
-            </button>
-          </div>
-
-          <div class="min-h-0 flex-1 bg-surface-975 p-4">
-            <div class="relative flex h-full min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-black shadow-panel">
-              <iframe
-                id="game-frame"
-                title="Generated game prototype"
-                class="h-full w-full border-none bg-black"
-              ></iframe>
-
-              <div
-                id="game-loading-overlay"
-                class="hidden absolute inset-0 z-10 items-center justify-center bg-surface-975/78 backdrop-blur-sm"
-              >
-                <div class="flex items-center gap-3 rounded-xl border border-white/10 bg-black/35 px-5 py-4 shadow-panel">
-                  <div
-                    class="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-accent-400"
-                  ></div>
-                  <span id="game-loading-text" class="text-sm font-medium text-white/88">
-                    Generating...
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div id="network-container" class="min-h-0 flex-1 p-4">
+          <div
+            id="jsmind_container"
+            class="h-full w-full rounded-2xl border border-white/10 bg-[#0b0b14]"
+          ></div>
         </div>
-      </section>
 
-      <section id="empty-state" class="hidden flex flex-1 items-center justify-center p-8">
-        <div class="w-full max-w-xl rounded-xl border border-white/10 bg-surface-900 p-8 shadow-panel">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">
-            No Game Config Found
+        <div class="border-t border-white/10 px-6 py-4">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45">
+            Status
           </p>
-          <h1 class="mt-4 text-3xl font-semibold tracking-tight text-white">
-            Your editor is ready for its first concept.
-          </h1>
-          <p class="mt-4 text-sm leading-7 text-white/60">
-            We could not find a saved `playweaverGameConfig` object in localStorage. Start from
-            the landing page and let PlayWeaver gather the details first.
+          <p id="mindmap-status" class="mt-2 text-sm leading-6 text-white/70">
+            Base schema nodes are locked. Double-click the title or any value leaf to edit text.
           </p>
-          <a
-            href="/index.html"
-            class="mt-6 inline-flex items-center justify-center rounded-md border border-accent-400/30 bg-accent-500/20 px-4 py-2.5 text-sm font-semibold text-white transition hover:border-accent-400/50 hover:bg-accent-500/30"
-          >
-            Back to Landing Page
-          </a>
+          <p id="generate-status" class="mt-3 text-sm leading-6 text-white/55">
+            Ready to generate a playable prototype.
+          </p>
         </div>
-      </section>
-    </div>
+      </div>
+
+      <button
+        id="inspector-toggle"
+        type="button"
+        aria-expanded="true"
+        aria-controls="inspector-panel"
+        class="absolute -right-12 bottom-8 flex h-12 w-12 items-center justify-center rounded-r-xl bg-[#10101b] border border-white/10 z-40"
+      >
+        &lt;
+      </button>
+    </aside>
+
+    <main class="flex-1 relative h-full bg-black z-10">
+      <iframe id="game-frame" class="w-full h-full border-0"></iframe>
+
+      <div
+        id="game-loading-overlay"
+        class="pointer-events-none absolute inset-0 hidden items-center justify-center bg-black/55 backdrop-blur-sm"
+      >
+        <div class="rounded-2xl border border-white/10 bg-[#10101b]/90 px-5 py-4 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
+          <span id="game-loading-text" class="text-sm font-medium text-white/90">
+            Generating...
+          </span>
+        </div>
+      </div>
+    </main>
+
     <script>
       const STORAGE_KEY = "playweaverGameConfig";
       const READY_STATUS = "Ready to generate a playable prototype.";
@@ -345,7 +247,7 @@
       const BASE_FIELD_KEYS = FIELDS.filter((field) => field.key !== "gameName").map(
         (field) => field.key
       );
-      const LOCKED_NODE_IDS = new Set(["root", ...BASE_FIELD_KEYS]);
+      const LOCKED_NODE_IDS = new Set(BASE_FIELD_KEYS);
       const DEFAULT_NODE_STYLE = {
         bg: "#1e1e2f",
         fg: "#ffffff",
@@ -363,9 +265,6 @@
         { bg: "#9f1239", fg: "#fff1f2", border: "#fda4af" },
       ];
 
-      const boardSection = document.getElementById("board-section");
-      const emptyState = document.getElementById("empty-state");
-      const boardTitle = document.getElementById("board-title");
       const summaryName = document.getElementById("summary-name");
       const summaryGenre = document.getElementById("summary-genre");
       const generateBtn = document.getElementById("generate-btn");
@@ -391,18 +290,30 @@
       let mindMapListenersBound = false;
       let nodeColorIndexes = new Map();
 
-      function normalizeStoredValue(value) {
+      function getDefaultGameConfig() {
+        return FIELDS.reduce((config, field) => {
+          config[field.key] = field.key === "gameName" ? "Untitled Game" : "None";
+          return config;
+        }, {});
+      }
+
+      function normalizeStoredValue(value, fallback = "None") {
         if (typeof value !== "string") {
-          return "None";
+          return fallback;
         }
 
         const trimmedValue = value.trim();
-        return trimmedValue || "None";
+        return trimmedValue || fallback;
       }
 
       function normalizeGameConfig(config) {
+        const defaults = getDefaultGameConfig();
+
         return FIELDS.reduce((normalizedConfig, field) => {
-          normalizedConfig[field.key] = normalizeStoredValue(config?.[field.key]);
+          normalizedConfig[field.key] = normalizeStoredValue(
+            config?.[field.key],
+            defaults[field.key]
+          );
           return normalizedConfig;
         }, {});
       }
@@ -440,6 +351,10 @@
           "aria-label",
           isInspectorCollapsed ? "Show inspector" : "Hide inspector"
         );
+
+        window.setTimeout(() => {
+          window.requestAnimationFrame(refreshNodeDecorations);
+        }, 200);
       }
 
       function setLoadingOverlay(isVisible, isRegenerating) {
@@ -468,36 +383,12 @@
       }
 
       function updateMetadata(config) {
-        const safeGameName =
-          config?.gameName && config.gameName !== "None" ? config.gameName : "Untitled Game";
-        const safeGenre =
-          config?.genre && config.genre !== "None" ? config.genre : "Not defined yet";
+        const safeGameName = normalizeStoredValue(config?.gameName, "Untitled Game");
+        const safeGenre = normalizeStoredValue(config?.genre, "Not defined yet");
 
         document.title = `${safeGameName} | Editor`;
-        boardTitle.textContent = safeGameName;
         summaryName.textContent = safeGameName;
-        summaryGenre.textContent = safeGenre;
-      }
-
-      function showEmptyState() {
-        boardSection.classList.add("hidden");
-        emptyState.classList.remove("hidden");
-        document.title = "Untitled Game";
-        currentConfig = null;
-        currentGeneratedHtml = "";
-        jm = null;
-        nodeColorIndexes = new Map();
-        clearPrototypeUrl();
-        updateOpenInNewTabState();
-        setLoadingOverlay(false, false);
-
-        if (generateStatus) {
-          generateStatus.textContent = READY_STATUS;
-        }
-
-        if (gameFrame) {
-          gameFrame.srcdoc = "";
-        }
+        summaryGenre.textContent = safeGenre === "None" ? "Not defined yet" : safeGenre;
       }
 
       function buildMindMapData(parsedConfig) {
@@ -510,9 +401,7 @@
           format: "node_tree",
           data: {
             id: "root",
-            topic: escapeHtml(
-              parsedConfig.gameName !== "None" ? parsedConfig.gameName : "Untitled Game"
-            ),
+            topic: escapeHtml(parsedConfig.gameName || "Untitled Game"),
             isroot: true,
             expanded: true,
             children: BASE_FIELD_KEYS.map((key, index) => ({
@@ -563,6 +452,18 @@
         return !Array.isArray(node?.children) || node.children.length === 0;
       }
 
+      function canEditNode(node) {
+        if (!node) {
+          return false;
+        }
+
+        if (node.id === "root") {
+          return true;
+        }
+
+        return !isLockedNodeId(node.id) && isLeafNode(node);
+      }
+
       function getNodeElement(nodeId) {
         if (!nodeId || !jsmindContainer) {
           return null;
@@ -589,7 +490,7 @@
               : DEFAULT_NODE_STYLE;
 
         element.dataset.locked = String(locked);
-        element.dataset.nodeKind = leaf ? "leaf" : locked ? "locked" : "branch";
+        element.dataset.nodeKind = node.id === "root" ? "root" : leaf ? "leaf" : "branch";
         element.style.backgroundColor = style.bg;
         element.style.color = style.fg;
         element.style.borderColor = style.border;
@@ -631,9 +532,9 @@
             return false;
           }
 
-          if (isLockedNodeId(targetNode.id) || !isLeafNode(targetNode)) {
+          if (!canEditNode(targetNode)) {
             updateMindmapStatus(
-              "Only leaf value nodes are editable. The game name and base variables are locked."
+              "Base schema nodes are locked. Double-click the title or any value leaf to edit text."
             );
             return false;
           }
@@ -664,9 +565,9 @@
         event.stopImmediatePropagation();
         jm.select_node(nodeId);
 
-        if (isLockedNodeId(nodeId) || !isLeafNode(targetNode)) {
+        if (!canEditNode(targetNode)) {
           updateMindmapStatus(
-            `${nodeId === "root" ? "The game name" : nodeId} is locked. Double-click only value leaves to edit text.`
+            "Base schema nodes are locked. Double-click the title or any value leaf to edit text."
           );
           return;
         }
@@ -715,14 +616,14 @@
           mode: "full",
           support_html: true,
           view: {
-            hmargin: 100,
-            vmargin: 60,
+            hmargin: 80,
+            vmargin: 48,
             line_width: 2,
             line_color: "rgba(255,255,255,0.18)",
           },
           layout: {
-            hspace: 90,
-            vspace: 28,
+            hspace: 72,
+            vspace: 24,
             pspace: 14,
           },
         });
@@ -730,13 +631,11 @@
         bindMindMapListeners();
         window.requestAnimationFrame(refreshNodeDecorations);
         updateMindmapStatus(
-          "Schema nodes are locked. Double-click any value leaf to edit its text."
+          "Base schema nodes are locked. Double-click the title or any value leaf to edit text."
         );
       }
 
       function renderBoard(config) {
-        boardSection.classList.remove("hidden");
-        emptyState.classList.add("hidden");
         currentConfig = normalizeGameConfig(config);
         updateMetadata(currentConfig);
         initMindMap(currentConfig);
@@ -864,8 +763,8 @@
           return;
         }
 
-        if (isLockedNodeId(selectedNode.id)) {
-          updateMindmapStatus("Locked schema nodes cannot be deleted.");
+        if (selectedNode.id === "root" || isLockedNodeId(selectedNode.id)) {
+          updateMindmapStatus("The title and base schema nodes cannot be deleted.");
           return;
         }
 
@@ -957,10 +856,7 @@
 
       async function handleGeneratePrototype() {
         if (!currentConfig) {
-          if (generateStatus) {
-            generateStatus.textContent = "No saved game config found yet.";
-          }
-          return;
+          currentConfig = normalizeGameConfig(getDefaultGameConfig());
         }
 
         const updatedGameConfig = getUpdatedGameConfigFromMindMap();
@@ -1033,6 +929,27 @@
         }
       }
 
+      function loadInitialConfig() {
+        try {
+          const rawConfig = localStorage.getItem(STORAGE_KEY);
+
+          if (!rawConfig) {
+            return getDefaultGameConfig();
+          }
+
+          const parsedConfig = JSON.parse(rawConfig);
+
+          if (!parsedConfig || typeof parsedConfig !== "object") {
+            return getDefaultGameConfig();
+          }
+
+          return parsedConfig;
+        } catch (error) {
+          console.error("Failed to read playweaverGameConfig:", error);
+          return getDefaultGameConfig();
+        }
+      }
+
       if (generateBtn) {
         generateBtn.addEventListener("click", handleGeneratePrototype);
       }
@@ -1064,25 +981,7 @@
 
       syncInspectorUI();
       updateOpenInNewTabState();
-
-      try {
-        const rawConfig = localStorage.getItem(STORAGE_KEY);
-
-        if (!rawConfig) {
-          showEmptyState();
-        } else {
-          const parsedConfig = JSON.parse(rawConfig);
-
-          if (!parsedConfig || typeof parsedConfig !== "object") {
-            showEmptyState();
-          } else {
-            renderBoard(parsedConfig);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to read playweaverGameConfig:", error);
-        showEmptyState();
-      }
+      renderBoard(loadInitialConfig());
     </script>
   </body>
 </html>
