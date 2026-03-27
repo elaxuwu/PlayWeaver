@@ -72,6 +72,49 @@ function stripJsonCodeFences(content) {
     .trim();
 }
 
+function parseStructuredMessageContent(content) {
+  if (content && typeof content === "object") {
+    return content;
+  }
+
+  if (typeof content !== "string") {
+    return null;
+  }
+
+  try {
+    return JSON.parse(stripJsonCodeFences(content));
+  } catch {
+    return null;
+  }
+}
+
+function getLastKnownBoardState(messageHistory) {
+  for (let index = messageHistory.length - 1; index >= 0; index -= 1) {
+    const message = messageHistory[index];
+
+    if (message?.role !== "assistant") {
+      continue;
+    }
+
+    const parsedContent = parseStructuredMessageContent(message.content);
+    const sourceBoardState =
+      parsedContent?.boardState && typeof parsedContent.boardState === "object"
+        ? parsedContent.boardState
+        : null;
+
+    if (!sourceBoardState) {
+      continue;
+    }
+
+    return BOARD_FIELDS.reduce((boardState, field) => {
+      boardState[field] = normalizeBoardValue(sourceBoardState[field]);
+      return boardState;
+    }, {});
+  }
+
+  return { ...EMPTY_BOARD_STATE };
+}
+
 function stripPrematureCompletionText(message) {
   if (typeof message !== "string") {
     return "";
@@ -180,11 +223,15 @@ export async function onRequestPost(context) {
       });
     }
 
+    const lastKnownBoardState = getLastKnownBoardState(messageHistory);
+    const missingFields = BOARD_FIELDS.filter((field) => lastKnownBoardState[field] === "None");
+    const dynamicSystemPrompt = `${SYSTEM_PROMPT}\n\nCRITICAL STATE UPDATE: The following fields are currently missing: [${missingFields.join(", ")}]. You MUST ask about the FIRST missing field in this list. DO NOT ask about any other fields.`;
+
     const completion = await client.chat.completions.create({
       model: "deepseek-ai/DeepSeek-V3-0324",
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: dynamicSystemPrompt },
         ...messageHistory.map((message) => ({
           role: message.role,
           content:
