@@ -122,7 +122,7 @@ export async function onRequestPost(context) {
         ];
 
     const completion = await client.chat.completions.create({
-      model: "gpt-5.4-nano",
+      model: "gpt-5.4",
       messages,
     });
 
