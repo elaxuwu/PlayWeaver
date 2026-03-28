@@ -15,6 +15,10 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+      defer
+    ></script>
   </head>
   <body class="editor-app" data-page="editor">
     <a href="index.html" class="playweaver-home" aria-label="Return to PlayWeaver home">
@@ -69,6 +73,24 @@
             <p class="editor-eyebrow">Prototype</p>
             <h2 class="preview-card__title">Live Preview</h2>
           </div>
+          <div class="preview-card__actions">
+            <button
+              id="download-game-btn"
+              type="button"
+              class="editor-button preview-action-button"
+            >
+              Download Game
+            </button>
+            <button
+              id="preview-size-toggle-btn"
+              type="button"
+              class="editor-button preview-action-button preview-action-button--icon"
+              aria-label="Maximize live preview"
+              aria-pressed="false"
+            >
+              <span id="preview-size-toggle-icon" aria-hidden="true">[]</span>
+            </button>
+          </div>
         </div>
 
         <div class="preview-frame-wrap">
@@ -81,6 +103,8 @@
           </div>
         </div>
       </section>
+
+      <div id="preview-backdrop" class="preview-backdrop" aria-hidden="true"></div>
 
       <div id="canvas-context-menu" class="context-menu hidden" role="menu" aria-label="Canvas menu"></div>
 

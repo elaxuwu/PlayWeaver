@@ -90,6 +90,11 @@
   const gameFrame = document.getElementById("game-frame");
   const gameLoadingOverlay = document.getElementById("game-loading-overlay");
   const gameLoadingText = document.getElementById("game-loading-text");
+  const downloadGameBtn = document.getElementById("download-game-btn");
+  const previewCard = document.querySelector(".preview-card");
+  const previewBackdrop = document.getElementById("preview-backdrop");
+  const previewSizeToggleBtn = document.getElementById("preview-size-toggle-btn");
+  const previewSizeToggleIcon = document.getElementById("preview-size-toggle-icon");
   const debugPanel = document.getElementById("debug-panel");
   const debugPayload = document.getElementById("debug-payload");
 
@@ -743,6 +748,181 @@
     editorState.currentPrototypeUrl = null;
   }
 
+  function getStateIdFromUrl() {
+    const stateId = new URL(window.location.href).searchParams.get("id");
+    return typeof stateId === "string" ? stateId.trim() : "";
+  }
+
+  function ensureStateIdInUrl() {
+    const existingId = getStateIdFromUrl();
+
+    if (existingId) {
+      return existingId;
+    }
+
+    const nextId = crypto.randomUUID();
+    const url = new URL(window.location.href);
+    url.searchParams.set("id", nextId);
+    window.history.replaceState({ stateId: nextId }, "", url);
+    return nextId;
+  }
+
+  function sanitizeDownloadName(value) {
+    const safeName = normalizeStoredValue(value, "playweaver-game")
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+    return safeName || "playweaver-game";
+  }
+
+  function setCurrentGeneratedHtml(html) {
+    editorState.currentGeneratedHtml = typeof html === "string" ? html : "";
+    clearPrototypeUrl();
+
+    if (gameFrame) {
+      gameFrame.srcdoc = editorState.currentGeneratedHtml;
+    }
+
+    updateOpenInNewTabState();
+  }
+
+  async function saveGeneratedPrototypeState(html) {
+    const normalizedHtml = typeof html === "string" ? html.trim() : "";
+
+    if (!normalizedHtml) {
+      return "";
+    }
+
+    const stateId = ensureStateIdInUrl();
+    const response = await fetch("/state", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: stateId,
+        html: normalizedHtml,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(getPrototypeErrorMessage(errorText, response.status));
+    }
+
+    return stateId;
+  }
+
+  async function loadPrototypeStateFromUrl() {
+    const stateId = getStateIdFromUrl();
+
+    if (!stateId) {
+      return;
+    }
+
+    try {
+      setGenerateStatus("Loading saved prototype...");
+      const response = await fetch(`/state?id=${encodeURIComponent(stateId)}`, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (response.status === 404) {
+        setGenerateStatus(READY_STATUS);
+        return;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(getPrototypeErrorMessage(errorText, response.status));
+      }
+
+      const payload = await response.json();
+
+      if (typeof payload?.html !== "string" || !payload.html.trim()) {
+        setGenerateStatus(READY_STATUS);
+        return;
+      }
+
+      setCurrentGeneratedHtml(payload.html);
+      setGenerateStatus("Loaded saved prototype from this URL.");
+    } catch (error) {
+      console.error("Failed to load saved prototype:", error);
+      setGenerateStatus(
+        error instanceof Error && error.message
+          ? `Saved prototype load failed: ${error.message}`
+          : "Unable to load the saved prototype from this URL."
+      );
+    }
+  }
+
+  function setPreviewMaximized(isMaximized) {
+    if (!previewCard || !previewBackdrop || !previewSizeToggleBtn) {
+      return;
+    }
+
+    previewCard.classList.toggle("is-maximized", isMaximized);
+    previewBackdrop.classList.toggle("is-visible", isMaximized);
+    previewBackdrop.setAttribute("aria-hidden", String(!isMaximized));
+    previewSizeToggleBtn.setAttribute("aria-pressed", String(isMaximized));
+    previewSizeToggleBtn.setAttribute(
+      "aria-label",
+      isMaximized ? "Minimize live preview" : "Maximize live preview"
+    );
+
+    if (previewSizeToggleIcon) {
+      previewSizeToggleIcon.textContent = isMaximized ? "x" : "[]";
+    }
+  }
+
+  function togglePreviewMaximized() {
+    if (!previewCard) {
+      return;
+    }
+
+    setPreviewMaximized(!previewCard.classList.contains("is-maximized"));
+  }
+
+  async function downloadGeneratedPrototypeZip() {
+    if (!editorState.currentGeneratedHtml) {
+      setGenerateStatus("Generate or load a prototype before downloading.");
+      return;
+    }
+
+    if (!window.JSZip) {
+      setGenerateStatus("JSZip is not available right now.");
+      return;
+    }
+
+    try {
+      const zip = new window.JSZip();
+      const gameName = buildGenerationPayload().gameConfig.gameName;
+      const fileBaseName = sanitizeDownloadName(gameName);
+      const downloadUrl = URL.createObjectURL(
+        await zip.file("index.html", editorState.currentGeneratedHtml).generateAsync({
+          type: "blob",
+        })
+      );
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `${fileBaseName}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      setGenerateStatus("Downloaded the current prototype as a .zip.");
+    } catch (error) {
+      console.error("Failed to download prototype zip:", error);
+      setGenerateStatus(
+        error instanceof Error && error.message
+          ? `Zip download failed: ${error.message}`
+          : "Unable to create the .zip download right now."
+      );
+    }
+  }
+
   function focusEditableNodeLabel(event) {
     const nodeId = event.currentTarget.closest(".board-node")?.dataset?.nodeId;
 
@@ -1280,14 +1460,23 @@
         throw new Error(getPrototypeErrorMessage(errorText, response.status));
       }
 
-      editorState.currentGeneratedHtml = await response.text();
-      updateOpenInNewTabState();
+      const generatedHtml = await response.text();
+      setCurrentGeneratedHtml(generatedHtml);
 
-      if (gameFrame) {
-        gameFrame.srcdoc = editorState.currentGeneratedHtml;
+      let saveError = null;
+
+      try {
+        await saveGeneratedPrototypeState(generatedHtml);
+      } catch (error) {
+        saveError = error;
+        console.error("Failed to save generated prototype:", error);
       }
 
-      setGenerateStatus("Prototype ready. Only linked nodes were sent to generation.");
+      setGenerateStatus(
+        saveError instanceof Error && saveError.message
+          ? `Prototype ready, but saving failed: ${saveError.message}`
+          : "Prototype ready. Only linked nodes were sent to generation and the preview was saved."
+      );
     } catch (error) {
       console.error("Failed to generate prototype:", error);
       setGenerateStatus(
@@ -1317,6 +1506,7 @@
 
     updateMetadata(buildGenerationPayload().gameConfig);
     setGenerateStatus(READY_STATUS);
+    setPreviewMaximized(false);
     updateOpenInNewTabState();
     scheduleRender();
   }
@@ -1575,6 +1765,20 @@
     openTabBtn.addEventListener("click", openPrototypeInNewTab);
   }
 
+  if (downloadGameBtn) {
+    downloadGameBtn.addEventListener("click", downloadGeneratedPrototypeZip);
+  }
+
+  if (previewSizeToggleBtn) {
+    previewSizeToggleBtn.addEventListener("click", togglePreviewMaximized);
+  }
+
+  if (previewBackdrop) {
+    previewBackdrop.addEventListener("click", function () {
+      setPreviewMaximized(false);
+    });
+  }
+
   boardCanvas.addEventListener("pointerdown", handleCanvasPointerDown);
   boardCanvas.addEventListener("contextmenu", handleBoardContextMenu);
   boardCanvas.addEventListener("wheel", handleCanvasWheel, { passive: false });
@@ -1621,6 +1825,7 @@
   window.addEventListener("pointermove", handlePointerMove);
   window.addEventListener("pointerup", handlePointerUp);
   window.addEventListener("resize", scheduleRender);
+  window.addEventListener("load", loadPrototypeStateFromUrl);
   window.addEventListener("beforeunload", clearPrototypeUrl);
   document.addEventListener("keydown", function (event) {
     if (!event.metaKey && !event.ctrlKey && !event.altKey) {
