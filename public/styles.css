@@ -669,6 +669,39 @@ body.editor-app {
   line-height: 1.5;
 }
 
+.editor-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.editor-select__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(248, 251, 255, 0.58);
+}
+
+.editor-select {
+  min-height: 3rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 1rem;
+  background: rgba(11, 16, 30, 0.84);
+  color: #f8fbff;
+  font: inherit;
+  font-weight: 600;
+  appearance: none;
+}
+
+.editor-select:focus {
+  outline: none;
+  border-color: rgba(125, 211, 252, 0.48);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
+}
+
 .editor-action-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -41,6 +41,14 @@
           <p id="summary-genre" class="editor-subheading">Not defined yet</p>
         </div>
 
+        <div class="editor-select-wrap">
+          <label for="generate-model-select" class="editor-select__label">Game Model</label>
+          <select id="generate-model-select" class="editor-select">
+            <option value="openai_gpt_5_4_nano">openAI's GPT 5.4 nano</option>
+            <option value="qwen_qwen2_5_coder_32b_instruct">Qwen/Qwen2.5-Coder-32B-Instruct</option>
+          </select>
+        </div>
+
         <div class="editor-action-grid">
           <button id="generate-btn" type="button" class="editor-button editor-button--primary">
             Generate
