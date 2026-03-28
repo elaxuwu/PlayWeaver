@@ -28,8 +28,10 @@
         class="board-canvas"
         aria-label="PlayWeaver node canvas"
       >
-        <svg id="board-links" class="board-links" aria-hidden="true"></svg>
-        <div id="board-nodes" class="board-nodes"></div>
+        <div id="board-stage" class="board-stage">
+          <svg id="board-links" class="board-links" aria-hidden="true"></svg>
+          <div id="board-nodes" class="board-nodes"></div>
+        </div>
       </section>
 
       <section class="editor-card glass-card board-summary-card" aria-label="Editor controls">
@@ -85,6 +87,11 @@
       <div id="link-hint" class="link-hint hidden" aria-live="polite">
         Link mode is active. Click another node to connect it, or press Escape to cancel.
       </div>
+
+      <aside id="debug-panel" class="debug-panel hidden" aria-live="polite">
+        <p class="debug-panel__title">Linked Payload</p>
+        <pre id="debug-payload" class="debug-panel__payload">{}</pre>
+      </aside>
     </main>
 
     <script src="scripts.js"></script>

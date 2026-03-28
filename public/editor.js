@@ -1,8 +1,12 @@
 (function () {
   const STORAGE_KEY = "playweaverGameConfig";
   const EDITOR_STATE_KEY = "playweaverEditorStateV2";
+  const EDITOR_STATE_VERSION = 3;
   const READY_STATUS = "Ready to generate a playable prototype.";
   const GRID_SIZE = 56;
+  const MIN_ZOOM = 0.45;
+  const MAX_ZOOM = 2.4;
+  const DEBUG_SEQUENCE = ["w", "w", "a", "a", "s", "s", "d", "d"];
   const FIELD_DEFINITIONS = [
     { key: "gameName", label: "Game Name" },
     { key: "genre", label: "Genre" },
@@ -15,37 +19,7 @@
   ];
   const BASE_FIELDS = FIELD_DEFINITIONS.filter((field) => field.key !== "gameName");
   const FIELD_IDS = new Set(BASE_FIELDS.map((field) => field.key));
-  const ROOT_NODE_IDS = ["title", ...BASE_FIELDS.map((field) => field.key)];
-  const DEFAULT_FIELD_LAYOUTS = {
-    genre: {
-      field: { x: -560, y: -120 },
-      note: { x: -292, y: -102 },
-    },
-    coreMechanic: {
-      field: { x: 72, y: -120 },
-      note: { x: 340, y: -102 },
-    },
-    artStyle: {
-      field: { x: -560, y: 40 },
-      note: { x: -292, y: 58 },
-    },
-    setting: {
-      field: { x: 72, y: 40 },
-      note: { x: 340, y: 58 },
-    },
-    playerCharacter: {
-      field: { x: -560, y: 200 },
-      note: { x: -292, y: 218 },
-    },
-    enemies: {
-      field: { x: 72, y: 200 },
-      note: { x: 340, y: 218 },
-    },
-    winCondition: {
-      field: { x: -244, y: 360 },
-      note: { x: 24, y: 378 },
-    },
-  };
+  const ROOT_NODE_IDS = ["title"];
   const NODE_COLORS = [
     {
       id: "sky",
@@ -107,6 +81,7 @@
   const nodeCount = document.getElementById("node-count");
   const linkCount = document.getElementById("link-count");
   const boardCanvas = document.getElementById("board-canvas");
+  const boardStage = document.getElementById("board-stage");
   const boardNodes = document.getElementById("board-nodes");
   const boardLinks = document.getElementById("board-links");
   const canvasContextMenu = document.getElementById("canvas-context-menu");
@@ -115,8 +90,10 @@
   const gameFrame = document.getElementById("game-frame");
   const gameLoadingOverlay = document.getElementById("game-loading-overlay");
   const gameLoadingText = document.getElementById("game-loading-text");
+  const debugPanel = document.getElementById("debug-panel");
+  const debugPayload = document.getElementById("debug-payload");
 
-  if (!boardCanvas || !boardNodes || !boardLinks || !canvasContextMenu) {
+  if (!boardCanvas || !boardStage || !boardNodes || !boardLinks || !canvasContextMenu) {
     return;
   }
 
@@ -124,6 +101,7 @@
     nodes: [],
     links: [],
     pan: defaultPan(),
+    zoom: 1,
     selectedNodeId: null,
     draggingNodeId: null,
     dragPointerOffset: { x: 0, y: 0 },
@@ -134,12 +112,14 @@
     nodeIdCounter: 0,
     renderQueued: false,
     contextMenu: null,
+    debugVisible: false,
+    debugKeyHistory: [],
   };
 
   function defaultPan() {
     return {
-      x: window.innerWidth / 2,
-      y: window.innerHeight / 2 - 60,
+      x: 0,
+      y: 0,
     };
   }
 
@@ -188,6 +168,27 @@
     return Math.min(Math.max(value, min), max);
   }
 
+  function positiveModulo(value, divisor) {
+    if (!divisor) {
+      return 0;
+    }
+
+    return ((value % divisor) + divisor) % divisor;
+  }
+
+  function getBoardMetrics() {
+    const rect = boardCanvas.getBoundingClientRect();
+    const width = rect.width || boardCanvas.clientWidth || window.innerWidth;
+    const height = rect.height || boardCanvas.clientHeight || window.innerHeight;
+
+    return {
+      width,
+      height,
+      centerX: width / 2,
+      centerY: height / 2,
+    };
+  }
+
   function getColorToken(colorId, kind) {
     return (
       NODE_COLORS.find((preset) => preset.id === colorId) ||
@@ -234,8 +235,8 @@
 
   function nodeToScreenPosition(node) {
     return {
-      x: node.x + editorState.pan.x,
-      y: node.y + editorState.pan.y,
+      x: node.x,
+      y: node.y,
     };
   }
 
@@ -263,9 +264,15 @@
   }
 
   function clientToWorld(clientX, clientY) {
+    const rect = boardCanvas.getBoundingClientRect();
+    const { centerX, centerY } = getBoardMetrics();
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+    const zoom = editorState.zoom;
+
     return {
-      x: clientX - editorState.pan.x,
-      y: clientY - editorState.pan.y,
+      x: (localX - (1 - zoom) * centerX) / zoom - editorState.pan.x,
+      y: (localY - (1 - zoom) * centerY) / zoom - editorState.pan.y,
     };
   }
 
@@ -284,13 +291,26 @@
 
   function createInitialBoardState(config) {
     const normalizedConfig = normalizeGameConfig(config);
+    const { centerX, centerY, width, height } = getBoardMetrics();
+    const titlePrototype = { kind: "title" };
+    const fieldPrototype = { kind: "field" };
+    const notePrototype = { kind: "note" };
+    const titleWidth = getNodeWidth(titlePrototype);
+    const titleHeight = getNodeHeight(titlePrototype);
+    const fieldWidth = getNodeWidth(fieldPrototype);
+    const fieldHeight = getNodeHeight(fieldPrototype);
+    const noteWidth = getNodeWidth(notePrototype);
+    const noteHeight = getNodeHeight(notePrototype);
+    const rootCenter = { x: centerX, y: centerY };
+    const categoryRadius = Math.max(210, Math.min(width, height) * 0.24);
+    const noteOffsetRadius = Math.max(164, Math.min(width, height) * 0.14);
     const nodes = [
       {
         id: "title",
         kind: "title",
         label: normalizeStoredValue(normalizedConfig.gameName, "Untitled Game"),
-        x: -136,
-        y: -300,
+        x: rootCenter.x - titleWidth / 2,
+        y: rootCenter.y - titleHeight / 2,
         locked: false,
         colorId: "sky",
       },
@@ -298,15 +318,25 @@
     const links = [];
 
     BASE_FIELDS.forEach((field, index) => {
-      const slot = DEFAULT_FIELD_LAYOUTS[field.key];
+      const angle = -Math.PI / 2 + (Math.PI * 2 * index) / BASE_FIELDS.length;
+      const unitX = Math.cos(angle);
+      const unitY = Math.sin(angle);
+      const fieldCenter = {
+        x: rootCenter.x + categoryRadius * unitX,
+        y: rootCenter.y + categoryRadius * unitY,
+      };
+      const noteCenter = {
+        x: fieldCenter.x + noteOffsetRadius * unitX,
+        y: fieldCenter.y + noteOffsetRadius * unitY,
+      };
       const noteColor = NODE_COLORS[(index + 1) % NODE_COLORS.length]?.id || "mint";
 
       nodes.push({
         id: field.key,
         kind: "field",
         label: field.label,
-        x: slot.field.x,
-        y: slot.field.y,
+        x: fieldCenter.x - fieldWidth / 2,
+        y: fieldCenter.y - fieldHeight / 2,
         locked: true,
         colorId: "slate",
       });
@@ -315,10 +345,16 @@
         id: `${field.key}_value`,
         kind: "note",
         label: normalizeStoredValue(normalizedConfig[field.key], "None"),
-        x: slot.note.x,
-        y: slot.note.y,
+        x: noteCenter.x - noteWidth / 2,
+        y: noteCenter.y - noteHeight / 2,
         locked: false,
         colorId: noteColor,
+      });
+
+      links.push({
+        id: `link_title_${field.key}`,
+        from: "title",
+        to: field.key,
       });
 
       links.push({
@@ -332,12 +368,17 @@
       nodes,
       links,
       pan: defaultPan(),
+      zoom: 1,
       signature: createConfigSignature(normalizedConfig),
     };
   }
 
   function normalizeBoardState(rawState) {
     if (!rawState || typeof rawState !== "object") {
+      return null;
+    }
+
+    if (Number(rawState.version) !== EDITOR_STATE_VERSION) {
       return null;
     }
 
@@ -410,6 +451,7 @@
 
     const panX = Number(rawState.pan?.x);
     const panY = Number(rawState.pan?.y);
+    const zoom = Number(rawState.zoom);
     const fallbackPan = defaultPan();
 
     return {
@@ -419,6 +461,7 @@
         x: Number.isFinite(panX) ? panX : fallbackPan.x,
         y: Number.isFinite(panY) ? panY : fallbackPan.y,
       },
+      zoom: Number.isFinite(zoom) ? clamp(zoom, MIN_ZOOM, MAX_ZOOM) : 1,
       signature: typeof rawState.signature === "string" ? rawState.signature : "",
     };
   }
@@ -624,10 +667,11 @@
       localStorage.setItem(
         EDITOR_STATE_KEY,
         JSON.stringify({
-          version: 2,
+          version: EDITOR_STATE_VERSION,
           nodes: editorState.nodes,
           links: editorState.links,
           pan: editorState.pan,
+          zoom: editorState.zoom,
           signature: createConfigSignature(payload.gameConfig),
         })
       );
@@ -670,6 +714,24 @@
 
     URL.revokeObjectURL(editorState.currentPrototypeUrl);
     editorState.currentPrototypeUrl = null;
+  }
+
+  function focusEditableNodeLabel(event) {
+    const nodeId = event.currentTarget.closest(".board-node")?.dataset?.nodeId;
+
+    if (nodeId) {
+      editorState.selectedNodeId = nodeId;
+    }
+  }
+
+  function handleEditableLabelPointerDown(event) {
+    focusEditableNodeLabel(event);
+    event.stopPropagation();
+  }
+
+  function handleEditableLabelMouseDown(event) {
+    focusEditableNodeLabel(event);
+    event.stopPropagation();
   }
 
   function renderNodes() {
@@ -715,6 +777,11 @@
         `;
       })
       .join("");
+
+    boardNodes.querySelectorAll('.board-node__label[data-editable="true"]').forEach((labelElement) => {
+      labelElement.addEventListener("mousedown", handleEditableLabelMouseDown);
+      labelElement.addEventListener("pointerdown", handleEditableLabelPointerDown);
+    });
   }
 
   function buildLinkPath(start, end) {
@@ -761,10 +828,15 @@
       }
 
       paths.push(
-        `<path class="board-link" data-link-id="${escapeHtml(link.id)}" d="${buildLinkPath(
-          from,
-          to
-        )}"></path>`
+        `
+          <g class="board-link-group" data-link-id="${escapeHtml(link.id)}">
+            <path class="board-link-hitarea" data-link-id="${escapeHtml(link.id)}" d="${buildLinkPath(
+              from,
+              to
+            )}"></path>
+            <path class="board-link" d="${buildLinkPath(from, to)}"></path>
+          </g>
+        `
       );
     });
 
@@ -780,7 +852,7 @@
     }
 
     boardLinks.innerHTML = paths.join("");
-    boardLinks.querySelectorAll(".board-link[data-link-id]").forEach((pathElement) => {
+    boardLinks.querySelectorAll(".board-link-hitarea[data-link-id]").forEach((pathElement) => {
       pathElement.addEventListener("contextmenu", handleLinkPathContextMenu);
     });
   }
@@ -894,19 +966,45 @@
     linkHint.classList.toggle("hidden", !editorState.linking);
   }
 
+  function renderDebugPanel(payload) {
+    if (!debugPanel || !debugPayload) {
+      return;
+    }
+
+    debugPanel.classList.toggle("hidden", !editorState.debugVisible);
+    debugPayload.textContent = JSON.stringify(payload, null, 2);
+  }
+
   function renderEditor() {
-    updateMetadata(buildGenerationPayload().gameConfig);
+    const payload = buildGenerationPayload();
+    const { width, height, centerX, centerY } = getBoardMetrics();
+    const gridSize = GRID_SIZE * editorState.zoom;
+    const gridOffsetX = positiveModulo(
+      editorState.pan.x * editorState.zoom + centerX * (1 - editorState.zoom),
+      gridSize
+    );
+    const gridOffsetY = positiveModulo(
+      editorState.pan.y * editorState.zoom + centerY * (1 - editorState.zoom),
+      gridSize
+    );
+
+    updateMetadata(payload.gameConfig);
     updateCounts();
     updateOpenInNewTabState();
 
-    boardCanvas.style.setProperty("--grid-offset-x", `${editorState.pan.x % GRID_SIZE}px`);
-    boardCanvas.style.setProperty("--grid-offset-y", `${editorState.pan.y % GRID_SIZE}px`);
+    boardCanvas.style.setProperty("--grid-size", `${gridSize}px`);
+    boardCanvas.style.setProperty("--grid-offset-x", `${gridOffsetX}px`);
+    boardCanvas.style.setProperty("--grid-offset-y", `${gridOffsetY}px`);
     boardCanvas.classList.toggle("is-panning", Boolean(editorState.panning));
     boardCanvas.classList.toggle("is-linking", Boolean(editorState.linking));
+    boardStage.style.width = `${width}px`;
+    boardStage.style.height = `${height}px`;
+    boardStage.style.transform = `scale(${editorState.zoom}) translate(${editorState.pan.x}px, ${editorState.pan.y}px)`;
 
     renderNodes();
     renderLinks();
     renderLinkHint();
+    renderDebugPanel(payload);
   }
 
   function scheduleRender() {
@@ -1178,6 +1276,7 @@
     editorState.nodes = storedBoard.nodes;
     editorState.links = storedBoard.links;
     editorState.pan = storedBoard.pan;
+    editorState.zoom = storedBoard.zoom || 1;
     editorState.nodeIdCounter = editorState.nodes.length;
 
     updateMetadata(buildGenerationPayload().gameConfig);
@@ -1186,11 +1285,32 @@
     scheduleRender();
   }
 
+  function updateDebugSequence(key) {
+    editorState.debugKeyHistory.push(key);
+
+    if (editorState.debugKeyHistory.length > DEBUG_SEQUENCE.length) {
+      editorState.debugKeyHistory.shift();
+    }
+
+    if (
+      editorState.debugKeyHistory.length === DEBUG_SEQUENCE.length &&
+      DEBUG_SEQUENCE.every((expectedKey, index) => editorState.debugKeyHistory[index] === expectedKey)
+    ) {
+      editorState.debugVisible = !editorState.debugVisible;
+      editorState.debugKeyHistory = [];
+      scheduleRender();
+    }
+  }
+
   function handlePointerMove(event) {
     if (editorState.panning) {
       editorState.pan = {
-        x: editorState.panning.startPan.x + (event.clientX - editorState.panning.startClient.x),
-        y: editorState.panning.startPan.y + (event.clientY - editorState.panning.startClient.y),
+        x:
+          editorState.panning.startPan.x +
+          (event.clientX - editorState.panning.startClient.x) / editorState.zoom,
+        y:
+          editorState.panning.startPan.y +
+          (event.clientY - editorState.panning.startClient.y) / editorState.zoom,
       };
       scheduleRender();
       return;
@@ -1212,10 +1332,7 @@
     }
 
     if (editorState.linking) {
-      editorState.linking.pointer = {
-        x: event.clientX,
-        y: event.clientY,
-      };
+      editorState.linking.pointer = clientToWorld(event.clientX, event.clientY);
       scheduleRender();
     }
   }
@@ -1235,7 +1352,11 @@
       return;
     }
 
-    if (event.target.closest(".board-node") || event.target.closest(".board-link")) {
+    if (
+      event.target.closest(".board-node") ||
+      event.target.closest(".board-link") ||
+      event.target.closest(".board-link-hitarea")
+    ) {
       return;
     }
 
@@ -1297,15 +1418,16 @@
     bringNodeToFront(nodeId);
     editorState.selectedNodeId = nodeId;
     editorState.draggingNodeId = nodeId;
+    const pointerWorld = clientToWorld(event.clientX, event.clientY);
     editorState.dragPointerOffset = {
-      x: event.clientX - editorState.pan.x - node.x,
-      y: event.clientY - editorState.pan.y - node.y,
+      x: pointerWorld.x - node.x,
+      y: pointerWorld.y - node.y,
     };
     scheduleRender();
   }
 
   function handleBoardContextMenu(event) {
-    if (event.target.closest(".board-link")) {
+    if (event.target.closest(".board-link") || event.target.closest(".board-link-hitarea")) {
       return;
     }
 
@@ -1336,6 +1458,15 @@
       kind: "canvas",
       worldPoint: clientToWorld(event.clientX, event.clientY),
     });
+  }
+
+  function handleCanvasWheel(event) {
+    event.preventDefault();
+
+    const zoomMultiplier = event.deltaY < 0 ? 1.12 : 0.89;
+    editorState.zoom = clamp(editorState.zoom * zoomMultiplier, MIN_ZOOM, MAX_ZOOM);
+    persistBoardState();
+    scheduleRender();
   }
 
   function handleDocumentPointerDown(event) {
@@ -1406,6 +1537,7 @@
 
   boardCanvas.addEventListener("pointerdown", handleCanvasPointerDown);
   boardCanvas.addEventListener("contextmenu", handleBoardContextMenu);
+  boardCanvas.addEventListener("wheel", handleCanvasWheel, { passive: false });
 
   boardNodes.addEventListener("pointerdown", handleNodePointerDown);
   boardNodes.addEventListener("input", function (event) {
@@ -1451,6 +1583,14 @@
   window.addEventListener("resize", scheduleRender);
   window.addEventListener("beforeunload", clearPrototypeUrl);
   document.addEventListener("keydown", function (event) {
+    if (!event.metaKey && !event.ctrlKey && !event.altKey) {
+      const normalizedKey = String(event.key || "").toLowerCase();
+
+      if (normalizedKey.length === 1) {
+        updateDebugSequence(normalizedKey);
+      }
+    }
+
     if (event.key === "Escape") {
       hideContextMenu();
 

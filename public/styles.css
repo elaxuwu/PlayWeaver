@@ -426,6 +426,7 @@ body.editor-app {
   overflow: hidden;
   --grid-offset-x: 0px;
   --grid-offset-y: 0px;
+  --grid-size: 56px;
 }
 
 .board-canvas.is-panning {
@@ -448,7 +449,7 @@ body.editor-app {
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-  background-size: 56px 56px;
+  background-size: var(--grid-size) var(--grid-size);
   background-position: var(--grid-offset-x) var(--grid-offset-y);
   opacity: 0.28;
 }
@@ -470,6 +471,13 @@ body.editor-app {
   inset: 0;
 }
 
+.board-stage {
+  position: absolute;
+  inset: 0;
+  transform-origin: center center;
+  will-change: transform;
+}
+
 .board-links {
   z-index: 1;
   overflow: visible;
@@ -482,23 +490,34 @@ body.editor-app {
   z-index: 2;
 }
 
+.board-link-group {
+  pointer-events: none;
+}
+
 .board-link {
   fill: none;
   stroke: rgba(163, 230, 255, 0.52);
-  stroke-width: 3.4;
+  stroke-width: 2.8;
   stroke-linecap: round;
   stroke-linejoin: round;
-  pointer-events: stroke;
-  cursor: pointer;
+  pointer-events: none;
   filter: drop-shadow(0 10px 18px rgba(18, 64, 109, 0.22));
   transition:
     stroke-width 140ms ease,
     stroke 140ms ease;
 }
 
-.board-link:hover {
+.board-link-group:hover .board-link {
   stroke: rgba(186, 236, 255, 0.82);
-  stroke-width: 4.8;
+  stroke-width: 3.6;
+}
+
+.board-link-hitarea {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0);
+  stroke-width: 16;
+  pointer-events: visibleStroke;
+  cursor: pointer;
 }
 
 .board-link--preview {
@@ -886,6 +905,40 @@ body.editor-app {
   color: #fde68a;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+}
+
+.debug-panel {
+  position: fixed;
+  left: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 50;
+  width: min(30rem, calc(100vw - 2.5rem));
+  max-height: min(24rem, 42vh);
+  padding: 0.95rem 1rem;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 1rem;
+  background: rgba(5, 8, 15, 0.94);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.4);
+  color: #dbeafe;
+  font-family: "Courier New", Courier, monospace;
+}
+
+.debug-panel__title {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(219, 234, 254, 0.72);
+}
+
+.debug-panel__payload {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .hidden {
