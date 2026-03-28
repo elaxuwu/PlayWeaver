@@ -1,9 +1,11 @@
 # Hackathon_LovHack
 this is a project for LovHack 2026!
 
+### **PREVIEW THE PAGE HERE: https://playweaver.pages.dev/**
+
 ## Environment Variables
 
-This project uses Cloudflare Pages Functions. The following environment variables must be set in your Cloudflare dashboard (or in a local `.dev.vars` file for development — **never commit this file**):
+This project uses Cloudflare Pages Functions. The following environment variables must be set in your Cloudflare dashboard (or in a local `.dev.vars` file for development - **never commit this file**):
 
 | Variable | Description |
 |---|---|
