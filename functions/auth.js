@@ -12,6 +12,8 @@ function jsonResponse(body, status = 200) {
   });
 }
 
+//hi someone looking through my code
+
 function getRedisConfig(context) {
   const redisUrl = context.env.UPSTASH_REDIS_REST_URL;
   const redisToken = context.env.UPSTASH_REDIS_REST_TOKEN;
