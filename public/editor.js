@@ -7,11 +7,6 @@
   const MIN_ZOOM = 0.45;
   const MAX_ZOOM = 2.4;
   const DEBUG_SEQUENCE = ["w", "w", "a", "a", "s", "s", "d", "d"];
-  const DEFAULT_GENERATION_MODEL = "openai_gpt_5_4_nano";
-  const SUPPORTED_GENERATION_MODELS = new Set([
-    DEFAULT_GENERATION_MODEL,
-    "meta_llama_llama_3_3_70b_instruct",
-  ]);
   const FIELD_DEFINITIONS = [
     { key: "gameName", label: "Game Name" },
     { key: "genre", label: "Genre" },
@@ -82,7 +77,6 @@
   const summaryName = document.getElementById("summary-name");
   const summaryGenre = document.getElementById("summary-genre");
   const generateBtn = document.getElementById("generate-btn");
-  const generateModelSelect = document.getElementById("generate-model-select");
   const openTabBtn = document.getElementById("open-tab-btn");
   const nodeCount = document.getElementById("node-count");
   const linkCount = document.getElementById("link-count");
@@ -159,10 +153,6 @@
       normalized[field.key] = normalizeStoredValue(config?.[field.key], defaults[field.key]);
       return normalized;
     }, {});
-  }
-
-  function normalizeGenerationModel(value) {
-    return SUPPORTED_GENERATION_MODELS.has(value) ? value : DEFAULT_GENERATION_MODEL;
   }
 
   function escapeHtml(value) {
@@ -1256,7 +1246,6 @@
 
   async function handleGeneratePrototype() {
     const payload = buildGenerationPayload();
-    const generationModel = normalizeGenerationModel(generateModelSelect?.value);
     const isRegenerating = Boolean(editorState.currentGeneratedHtml);
 
     persistBoardState();
@@ -1283,10 +1272,7 @@
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...payload,
-          generationModel,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -1328,10 +1314,6 @@
     editorState.pan = storedBoard.pan;
     editorState.zoom = storedBoard.zoom || 1;
     editorState.nodeIdCounter = editorState.nodes.length;
-
-    if (generateModelSelect) {
-      generateModelSelect.value = normalizeGenerationModel(generateModelSelect.value);
-    }
 
     updateMetadata(buildGenerationPayload().gameConfig);
     setGenerateStatus(READY_STATUS);
