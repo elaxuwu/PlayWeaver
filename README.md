@@ -1,7 +1,7 @@
 # Hackathon_LovHack
 this is a project for LovHack 2026!
 
-### **PREVIEW THE PAGE HERE: https://playweaver.pages.dev/**
+### **VISIT THE PAGE HERE: https://playweaver.pages.dev/**
 
 ## Environment Variables
 
