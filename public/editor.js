@@ -15,6 +15,37 @@
   ];
   const BASE_FIELDS = FIELD_DEFINITIONS.filter((field) => field.key !== "gameName");
   const FIELD_IDS = new Set(BASE_FIELDS.map((field) => field.key));
+  const ROOT_NODE_IDS = ["title", ...BASE_FIELDS.map((field) => field.key)];
+  const DEFAULT_FIELD_LAYOUTS = {
+    genre: {
+      field: { x: -560, y: -120 },
+      note: { x: -292, y: -102 },
+    },
+    coreMechanic: {
+      field: { x: 72, y: -120 },
+      note: { x: 340, y: -102 },
+    },
+    artStyle: {
+      field: { x: -560, y: 40 },
+      note: { x: -292, y: 58 },
+    },
+    setting: {
+      field: { x: 72, y: 40 },
+      note: { x: 340, y: 58 },
+    },
+    playerCharacter: {
+      field: { x: -560, y: 200 },
+      note: { x: -292, y: 218 },
+    },
+    enemies: {
+      field: { x: 72, y: 200 },
+      note: { x: 340, y: 218 },
+    },
+    winCondition: {
+      field: { x: -244, y: 360 },
+      note: { x: 24, y: 378 },
+    },
+  };
   const NODE_COLORS = [
     {
       id: "sky",
@@ -73,22 +104,21 @@
   const summaryGenre = document.getElementById("summary-genre");
   const generateBtn = document.getElementById("generate-btn");
   const openTabBtn = document.getElementById("open-tab-btn");
-  const deleteSelectedBtn = document.getElementById("delete-selected-btn");
-  const centerBoardBtn = document.getElementById("center-board-btn");
   const nodeCount = document.getElementById("node-count");
   const linkCount = document.getElementById("link-count");
   const boardCanvas = document.getElementById("board-canvas");
   const boardNodes = document.getElementById("board-nodes");
   const boardLinks = document.getElementById("board-links");
-  const nodeColorMenu = document.getElementById("node-color-menu");
-  const nodeColorSwatches = document.getElementById("node-color-swatches");
   const canvasContextMenu = document.getElementById("canvas-context-menu");
   const linkHint = document.getElementById("link-hint");
-  const mindmapStatus = document.getElementById("mindmap-status");
   const generateStatus = document.getElementById("generate-status");
   const gameFrame = document.getElementById("game-frame");
   const gameLoadingOverlay = document.getElementById("game-loading-overlay");
   const gameLoadingText = document.getElementById("game-loading-text");
+
+  if (!boardCanvas || !boardNodes || !boardLinks || !canvasContextMenu) {
+    return;
+  }
 
   const editorState = {
     nodes: [],
@@ -99,18 +129,17 @@
     dragPointerOffset: { x: 0, y: 0 },
     panning: null,
     linking: null,
-    editingNodeId: null,
     currentGeneratedHtml: "",
     currentPrototypeUrl: null,
     nodeIdCounter: 0,
     renderQueued: false,
-    contextMenuItems: [],
+    contextMenu: null,
   };
 
   function defaultPan() {
     return {
       x: window.innerWidth / 2,
-      y: window.innerHeight / 2 - 70,
+      y: window.innerHeight / 2 - 60,
     };
   }
 
@@ -128,6 +157,13 @@
 
     const trimmedValue = value.trim();
     return trimmedValue || fallback;
+  }
+
+  function normalizeEditableText(value) {
+    return String(value || "")
+      .replace(/\u00a0/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function normalizeGameConfig(config) {
@@ -210,12 +246,12 @@
       return null;
     }
 
-    const element = getNodeElement(nodeId);
+    const nodeElement = getNodeElement(nodeId);
 
-    if (element) {
+    if (nodeElement) {
       return {
-        x: element.offsetLeft + element.offsetWidth / 2,
-        y: element.offsetTop + element.offsetHeight / 2,
+        x: nodeElement.offsetLeft + nodeElement.offsetWidth / 2,
+        y: nodeElement.offsetTop + nodeElement.offsetHeight / 2,
       };
     }
 
@@ -238,18 +274,23 @@
     return `${prefix}_${Date.now()}_${editorState.nodeIdCounter}`;
   }
 
+  function createLinkId(fromNodeId, toNodeId) {
+    return `link_${fromNodeId}_${toNodeId}_${Date.now()}_${editorState.links.length + 1}`;
+  }
+
   function createConfigSignature(config) {
     return JSON.stringify(normalizeGameConfig(config));
   }
 
   function createInitialBoardState(config) {
+    const normalizedConfig = normalizeGameConfig(config);
     const nodes = [
       {
         id: "title",
         kind: "title",
-        label: normalizeStoredValue(config.gameName, "Untitled Game"),
+        label: normalizeStoredValue(normalizedConfig.gameName, "Untitled Game"),
         x: -136,
-        y: -220,
+        y: -300,
         locked: false,
         colorId: "sky",
       },
@@ -257,19 +298,15 @@
     const links = [];
 
     BASE_FIELDS.forEach((field, index) => {
-      const isLeftColumn = index % 2 === 0;
-      const row = Math.floor(index / 2);
-      const fieldX = isLeftColumn ? -520 : 168;
-      const noteX = isLeftColumn ? -252 : 428;
-      const y = -120 + row * 168;
+      const slot = DEFAULT_FIELD_LAYOUTS[field.key];
       const noteColor = NODE_COLORS[(index + 1) % NODE_COLORS.length]?.id || "mint";
 
       nodes.push({
         id: field.key,
         kind: "field",
         label: field.label,
-        x: fieldX,
-        y,
+        x: slot.field.x,
+        y: slot.field.y,
         locked: true,
         colorId: "slate",
       });
@@ -277,9 +314,9 @@
       nodes.push({
         id: `${field.key}_value`,
         kind: "note",
-        label: normalizeStoredValue(config[field.key], "None"),
-        x: noteX,
-        y: y + 18,
+        label: normalizeStoredValue(normalizedConfig[field.key], "None"),
+        x: slot.note.x,
+        y: slot.note.y,
         locked: false,
         colorId: noteColor,
       });
@@ -295,7 +332,7 @@
       nodes,
       links,
       pan: defaultPan(),
-      signature: createConfigSignature(config),
+      signature: createConfigSignature(normalizedConfig),
     };
   }
 
@@ -364,22 +401,23 @@
         }
 
         return {
-          id:
-            typeof link.id === "string" && link.id
-              ? link.id
-              : `link_${from}_${to}`,
+          id: typeof link.id === "string" && link.id ? link.id : `link_${from}_${to}`,
           from,
           to,
         };
       })
       .filter(Boolean);
 
+    const panX = Number(rawState.pan?.x);
+    const panY = Number(rawState.pan?.y);
+    const fallbackPan = defaultPan();
+
     return {
       nodes,
       links,
       pan: {
-        x: Number(rawState.pan?.x) || defaultPan().x,
-        y: Number(rawState.pan?.y) || defaultPan().y,
+        x: Number.isFinite(panX) ? panX : fallbackPan.x,
+        y: Number.isFinite(panY) ? panY : fallbackPan.y,
       },
       signature: typeof rawState.signature === "string" ? rawState.signature : "",
     };
@@ -427,12 +465,6 @@
     }
   }
 
-  function setBoardStatus(message) {
-    if (mindmapStatus) {
-      mindmapStatus.textContent = message;
-    }
-  }
-
   function setGenerateStatus(message) {
     if (generateStatus) {
       generateStatus.textContent = message;
@@ -469,27 +501,61 @@
     return adjacency;
   }
 
-  function collectFieldValues(fieldId, adjacency) {
-    const queue = [...(adjacency.get(fieldId) || [])];
+  function buildReachableBoardState() {
+    const adjacency = buildAdjacencyMap();
+    const reachableNodeIds = new Set();
+    const queue = [];
+
+    ROOT_NODE_IDS.forEach((rootNodeId) => {
+      if (adjacency.has(rootNodeId)) {
+        reachableNodeIds.add(rootNodeId);
+        queue.push(rootNodeId);
+      }
+    });
+
+    while (queue.length) {
+      const currentNodeId = queue.shift();
+      const neighbors = adjacency.get(currentNodeId) || [];
+
+      neighbors.forEach((neighborId) => {
+        if (!reachableNodeIds.has(neighborId)) {
+          reachableNodeIds.add(neighborId);
+          queue.push(neighborId);
+        }
+      });
+    }
+
+    return {
+      adjacency,
+      reachableNodeIds,
+      nodes: editorState.nodes.filter((node) => reachableNodeIds.has(node.id)),
+      links: editorState.links.filter(
+        (link) => reachableNodeIds.has(link.from) && reachableNodeIds.has(link.to)
+      ),
+    };
+  }
+
+  function collectFieldValues(fieldId, adjacency, reachableNodeIds) {
     const visited = new Set([fieldId]);
+    const queue = [...(adjacency.get(fieldId) || [])].filter((nodeId) => reachableNodeIds.has(nodeId));
     const collected = [];
 
     while (queue.length) {
-      const currentId = queue.shift();
+      const currentNodeId = queue.shift();
 
-      if (visited.has(currentId)) {
+      if (visited.has(currentNodeId) || !reachableNodeIds.has(currentNodeId)) {
         continue;
       }
 
-      visited.add(currentId);
+      visited.add(currentNodeId);
 
-      if (FIELD_IDS.has(currentId)) {
+      if (FIELD_IDS.has(currentNodeId) || currentNodeId === "title") {
         continue;
       }
 
-      const node = getNodeById(currentId);
+      const node = getNodeById(currentNodeId);
 
-      if (!node || node.kind === "title") {
+      if (!node || node.kind !== "note") {
         continue;
       }
 
@@ -499,9 +565,14 @@
         collected.push(normalizedLabel);
       }
 
-      const neighbors = adjacency.get(currentId) || [];
+      const neighbors = adjacency.get(currentNodeId) || [];
       neighbors.forEach((neighborId) => {
-        if (!visited.has(neighborId) && !FIELD_IDS.has(neighborId)) {
+        if (
+          !visited.has(neighborId) &&
+          reachableNodeIds.has(neighborId) &&
+          !FIELD_IDS.has(neighborId) &&
+          neighborId !== "title"
+        ) {
           queue.push(neighborId);
         }
       });
@@ -510,23 +581,44 @@
     return Array.from(new Set(collected));
   }
 
-  function getUpdatedGameConfigFromBoard() {
-    const nextConfig = getDefaultGameConfig();
+  function buildGenerationPayload() {
+    const { adjacency, reachableNodeIds, nodes, links } = buildReachableBoardState();
+    const gameConfig = getDefaultGameConfig();
     const titleNode = getNodeById("title");
-    const adjacency = buildAdjacencyMap();
 
-    nextConfig.gameName = normalizeStoredValue(titleNode?.label, "Untitled Game");
+    gameConfig.gameName = normalizeStoredValue(titleNode?.label, "Untitled Game");
 
     BASE_FIELDS.forEach((field) => {
-      const values = collectFieldValues(field.key, adjacency);
-      nextConfig[field.key] = values.length ? values.join(", ") : "None";
+      const values = collectFieldValues(field.key, adjacency, reachableNodeIds);
+      gameConfig[field.key] = values.length ? values.join(", ") : "None";
     });
 
-    return normalizeGameConfig(nextConfig);
+    return {
+      gameConfig: normalizeGameConfig(gameConfig),
+      boardState: {
+        nodes: nodes.map((node) => ({
+          id: node.id,
+          kind: node.kind,
+          label: normalizeStoredValue(
+            node.label,
+            node.kind === "title" ? "Untitled Game" : node.kind === "field" ? "Field" : "New note"
+          ),
+          x: node.x,
+          y: node.y,
+          locked: Boolean(node.locked),
+          colorId: node.colorId,
+        })),
+        links: links.map((link) => ({
+          id: link.id,
+          from: link.from,
+          to: link.to,
+        })),
+      },
+    };
   }
 
   function persistBoardState() {
-    const nextConfig = getUpdatedGameConfigFromBoard();
+    const payload = buildGenerationPayload();
 
     try {
       localStorage.setItem(
@@ -536,10 +628,10 @@
           nodes: editorState.nodes,
           links: editorState.links,
           pan: editorState.pan,
-          signature: createConfigSignature(nextConfig),
+          signature: createConfigSignature(payload.gameConfig),
         })
       );
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextConfig));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload.gameConfig));
     } catch (error) {
       console.error("Failed to persist editor state:", error);
     }
@@ -582,7 +674,7 @@
 
   function renderNodes() {
     boardNodes.innerHTML = editorState.nodes
-      .map((node) => {
+      .map((node, index) => {
         const color = getColorToken(node.colorId, node.kind);
         const position = nodeToScreenPosition(node);
         const selected = node.id === editorState.selectedNodeId;
@@ -595,7 +687,11 @@
           .filter(Boolean)
           .join(" ");
         const kindLabel =
-          node.kind === "title" ? "Game Title" : node.kind === "field" ? "Field" : "Note";
+          node.kind === "title" ? "Game Title" : node.kind === "field" ? "Category" : "Node";
+        const isEditable = node.kind === "note";
+        const labelAttributes = isEditable
+          ? 'contenteditable="true" data-editable="true"'
+          : 'data-editable="false"';
 
         return `
           <article
@@ -604,6 +700,7 @@
             style="
               left:${position.x}px;
               top:${position.y}px;
+              z-index:${index + 1};
               --node-surface:${color.surface};
               --node-border:${color.border};
               --node-glow:${color.glow};
@@ -611,7 +708,9 @@
             "
           >
             <span class="board-node__kind">${kindLabel}</span>
-            <div class="board-node__label" spellcheck="false">${escapeHtml(node.label)}</div>
+            <div class="board-node__label" ${labelAttributes} spellcheck="false">${escapeHtml(
+              node.label
+            )}</div>
           </article>
         `;
       })
@@ -625,6 +724,23 @@
     const controlTwoX = end.x - curve * direction;
 
     return `M ${start.x} ${start.y} C ${controlOneX} ${start.y}, ${controlTwoX} ${end.y}, ${end.x} ${end.y}`;
+  }
+
+  function handleLinkPathContextMenu(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const linkId = event.currentTarget?.dataset?.linkId;
+
+    if (!linkId) {
+      return;
+    }
+
+    cancelLinkMode();
+    showContextMenu(event.clientX, event.clientY, {
+      kind: "link",
+      linkId,
+    });
   }
 
   function renderLinks() {
@@ -644,7 +760,12 @@
         return;
       }
 
-      paths.push(`<path class="board-link" d="${buildLinkPath(from, to)}"></path>`);
+      paths.push(
+        `<path class="board-link" data-link-id="${escapeHtml(link.id)}" d="${buildLinkPath(
+          from,
+          to
+        )}"></path>`
+      );
     });
 
     if (editorState.linking) {
@@ -659,6 +780,9 @@
     }
 
     boardLinks.innerHTML = paths.join("");
+    boardLinks.querySelectorAll(".board-link[data-link-id]").forEach((pathElement) => {
+      pathElement.addEventListener("contextmenu", handleLinkPathContextMenu);
+    });
   }
 
   function positionFloatingElement(element, x, y) {
@@ -675,64 +799,89 @@
     });
   }
 
-  function renderColorMenu() {
-    if (!nodeColorMenu || !nodeColorSwatches || !editorState.selectedNodeId || editorState.editingNodeId) {
-      if (nodeColorMenu) {
-        nodeColorMenu.classList.add("hidden");
+  function renderContextButton(action, symbol, label, options) {
+    const buttonOptions = options || {};
+    const classes = ["context-menu__button"];
+
+    if (buttonOptions.danger) {
+      classes.push("context-menu__button--danger");
+    }
+
+    return `
+      <button
+        type="button"
+        class="${classes.join(" ")}"
+        data-menu-action="${escapeHtml(action)}"
+        ${buttonOptions.disabled ? 'disabled aria-disabled="true"' : ""}
+      >
+        <span class="context-menu__symbol">${escapeHtml(symbol)}</span>
+        <span>${escapeHtml(label)}</span>
+      </button>
+    `;
+  }
+
+  function canDeleteNode(node) {
+    return Boolean(node && node.kind === "note" && !node.locked);
+  }
+
+  function renderContextMenu(context) {
+    if (!context) {
+      return "";
+    }
+
+    if (context.kind === "canvas") {
+      return renderContextButton("add-node", "+", "Add Node");
+    }
+
+    if (context.kind === "link") {
+      return renderContextButton("delete-link", "-", "Delete Link", { danger: true });
+    }
+
+    if (context.kind === "node") {
+      const node = getNodeById(context.nodeId);
+
+      if (!node) {
+        return "";
       }
-      return;
-    }
-
-    const node = getNodeById(editorState.selectedNodeId);
-    const nodeElement = getNodeElement(editorState.selectedNodeId);
-
-    if (!node || !nodeElement) {
-      nodeColorMenu.classList.add("hidden");
-      return;
-    }
-
-    nodeColorSwatches.innerHTML = NODE_COLORS.map((preset) => {
-      const activeClass = preset.id === node.colorId ? "is-active" : "";
 
       return `
-        <button
-          type="button"
-          class="floating-palette__swatch ${activeClass}"
-          data-color-id="${preset.id}"
-          aria-label="Apply ${preset.id} color"
-          style="background:${preset.surface}; border-color:${preset.border};"
-        ></button>
+        ${renderContextButton("start-link", "->", "Start Link")}
+        <div class="context-menu__section">
+          <p class="context-menu__section-label">Change Color</p>
+          <div class="context-menu__swatches">
+            ${NODE_COLORS.map((preset) => {
+              const isActive = preset.id === node.colorId ? "is-active" : "";
+              return `
+                <button
+                  type="button"
+                  class="context-menu__swatch ${isActive}"
+                  data-color-id="${preset.id}"
+                  aria-label="Apply ${preset.id} color"
+                  style="background:${preset.surface}; border-color:${preset.border};"
+                ></button>
+              `;
+            }).join("")}
+          </div>
+        </div>
+        ${renderContextButton("delete-node", "-", "Delete Node", {
+          danger: true,
+          disabled: !canDeleteNode(node),
+        })}
       `;
-    }).join("");
+    }
 
-    nodeColorMenu.classList.remove("hidden");
-
-    const rect = nodeElement.getBoundingClientRect();
-    const paletteWidth = 188;
-    const offsetX = rect.right + paletteWidth > window.innerWidth - 12 ? -paletteWidth - 14 : 14;
-    const x = rect.right + offsetX;
-    const y = rect.top + rect.height / 2 - 40;
-
-    positionFloatingElement(nodeColorMenu, x, y);
+    return "";
   }
 
   function hideContextMenu() {
-    editorState.contextMenuItems = [];
+    editorState.contextMenu = null;
+    canvasContextMenu.innerHTML = "";
     canvasContextMenu.classList.add("hidden");
   }
 
-  function showContextMenu(x, y, items) {
-    editorState.contextMenuItems = items;
-    canvasContextMenu.innerHTML = items
-      .map(
-        (item, index) => `
-          <button type="button" class="context-menu__button" data-menu-index="${index}">
-            <span class="context-menu__symbol">${item.symbol}</span>
-            <span>${item.label}</span>
-          </button>
-        `
-      )
-      .join("");
+  function showContextMenu(x, y, context) {
+    editorState.contextMenu = context;
+    canvasContextMenu.innerHTML = renderContextMenu(context);
     canvasContextMenu.classList.remove("hidden");
     positionFloatingElement(canvasContextMenu, x, y);
   }
@@ -746,7 +895,7 @@
   }
 
   function renderEditor() {
-    updateMetadata(getUpdatedGameConfigFromBoard());
+    updateMetadata(buildGenerationPayload().gameConfig);
     updateCounts();
     updateOpenInNewTabState();
 
@@ -757,7 +906,6 @@
 
     renderNodes();
     renderLinks();
-    renderColorMenu();
     renderLinkHint();
   }
 
@@ -785,20 +933,6 @@
     editorState.nodes.push(movedNode);
   }
 
-  function setSelectedNode(nodeId) {
-    editorState.selectedNodeId = nodeId;
-    scheduleRender();
-  }
-
-  function clearSelection() {
-    editorState.selectedNodeId = null;
-    scheduleRender();
-  }
-
-  function createLinkId(from, to) {
-    return `link_${from}_${to}_${Date.now()}_${editorState.links.length + 1}`;
-  }
-
   function hasLinkBetween(nodeA, nodeB) {
     return editorState.links.some(
       (link) =>
@@ -806,91 +940,80 @@
     );
   }
 
-  function addNodeAt(clientX, clientY) {
-    const worldPoint = clientToWorld(clientX, clientY);
+  function addNodeAtWorld(worldX, worldY) {
     const nextNodeId = createNodeId("note");
     const nextNode = {
       id: nextNodeId,
       kind: "note",
       label: "New note",
-      x: worldPoint.x,
-      y: worldPoint.y,
+      x: worldX,
+      y: worldY,
       locked: false,
       colorId: "gold",
     };
 
     editorState.nodes.push(nextNode);
-    bringNodeToFront(nextNodeId);
     editorState.selectedNodeId = nextNodeId;
     persistBoardState();
     scheduleRender();
-    setBoardStatus("Added a new note. Double-click it to rename.");
+  }
 
-    window.requestAnimationFrame(() => {
-      beginNodeEdit(nextNodeId);
-    });
+  function deleteLink(linkId) {
+    const hadLink = editorState.links.some((link) => link.id === linkId);
+
+    if (!hadLink) {
+      return;
+    }
+
+    editorState.links = editorState.links.filter((link) => link.id !== linkId);
+    persistBoardState();
+    scheduleRender();
   }
 
   function removeLinksForNode(nodeId) {
-    const hadLinks = editorState.links.some((link) => link.from === nodeId || link.to === nodeId);
     editorState.links = editorState.links.filter((link) => link.from !== nodeId && link.to !== nodeId);
-    return hadLinks;
   }
 
   function deleteNode(nodeId) {
-    const selectedId = nodeId || editorState.selectedNodeId;
-    const node = getNodeById(selectedId);
+    const targetNodeId = nodeId || editorState.selectedNodeId;
+    const node = getNodeById(targetNodeId);
 
-    if (!node) {
-      setBoardStatus("Select a node before deleting.");
+    if (!canDeleteNode(node)) {
       return;
     }
 
-    if (node.kind === "title") {
-      setBoardStatus("The title card stays in place so the game always has a name.");
-      return;
-    }
+    editorState.nodes = editorState.nodes.filter((item) => item.id !== targetNodeId);
+    removeLinksForNode(targetNodeId);
 
-    if (node.locked || node.kind === "field") {
-      setBoardStatus("Schema field cards stay pinned so PlayWeaver can map your concept correctly.");
-      return;
-    }
-
-    editorState.nodes = editorState.nodes.filter((item) => item.id !== selectedId);
-    removeLinksForNode(selectedId);
-
-    if (editorState.linking?.fromNodeId === selectedId) {
+    if (editorState.linking?.fromNodeId === targetNodeId) {
       editorState.linking = null;
-    }
-
-    if (editorState.editingNodeId === selectedId) {
-      editorState.editingNodeId = null;
     }
 
     editorState.selectedNodeId = null;
     persistBoardState();
     scheduleRender();
-    setBoardStatus("Removed the selected node.");
   }
 
   function startLinkMode(fromNodeId) {
+    if (!getNodeById(fromNodeId)) {
+      return;
+    }
+
     editorState.linking = {
       fromNodeId,
       pointer: getNodeCenter(fromNodeId),
     };
-    setSelectedNode(fromNodeId);
+    editorState.selectedNodeId = fromNodeId;
     hideContextMenu();
-    setBoardStatus("Link mode is active. Click another node to connect the line.");
     scheduleRender();
   }
 
-  function cancelLinkMode(message) {
+  function cancelLinkMode() {
     if (!editorState.linking) {
       return;
     }
 
     editorState.linking = null;
-    setBoardStatus(message || "Link mode cancelled.");
     scheduleRender();
   }
 
@@ -902,7 +1025,7 @@
     const fromNodeId = editorState.linking.fromNodeId;
 
     if (fromNodeId === targetNodeId) {
-      cancelLinkMode("Choose a different node to complete the link.");
+      cancelLinkMode();
       return;
     }
 
@@ -917,69 +1040,28 @@
 
     editorState.linking = null;
     editorState.selectedNodeId = targetNodeId;
-    setBoardStatus("Linked the two nodes.");
     scheduleRender();
   }
 
-  function beginNodeEdit(nodeId) {
+  function syncEditableLabel(labelElement, options) {
+    const syncOptions = options || {};
+    const nodeElement = labelElement.closest(".board-node");
+    const nodeId = nodeElement?.dataset?.nodeId;
     const node = getNodeById(nodeId);
 
-    if (!node || node.locked) {
-      setBoardStatus("Field labels stay fixed so PlayWeaver can keep the board schema aligned.");
+    if (!node || node.kind !== "note") {
       return;
     }
 
-    const nodeElement = getNodeElement(nodeId);
-    const labelElement = nodeElement?.querySelector(".board-node__label");
-
-    if (!labelElement) {
-      return;
-    }
-
-    editorState.editingNodeId = nodeId;
-    hideContextMenu();
-    nodeColorMenu.classList.add("hidden");
-    labelElement.setAttribute("contenteditable", "true");
-    labelElement.focus();
-
-    const selection = window.getSelection();
-
-    if (selection) {
-      const range = document.createRange();
-      range.selectNodeContents(labelElement);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-  }
-
-  function finishNodeEdit(shouldCommit) {
-    const nodeId = editorState.editingNodeId;
-
-    if (!nodeId) {
-      return;
-    }
-
-    const node = getNodeById(nodeId);
-    const nodeElement = getNodeElement(nodeId);
-    const labelElement = nodeElement?.querySelector(".board-node__label");
-
-    if (!node || !labelElement) {
-      editorState.editingNodeId = null;
-      scheduleRender();
-      return;
-    }
-
-    if (shouldCommit) {
-      const fallback =
-        node.kind === "title" ? "Untitled Game" : node.kind === "note" ? "New note" : node.label;
-      node.label = normalizeStoredValue(labelElement.textContent, fallback);
+    if (syncOptions.commit) {
+      node.label = normalizeStoredValue(normalizeEditableText(labelElement.textContent), "New note");
+      labelElement.textContent = node.label;
       persistBoardState();
-      setBoardStatus(`Updated the ${node.kind === "title" ? "title" : "node"} text.`);
+    } else {
+      node.label = String(labelElement.textContent || "");
     }
 
-    labelElement.removeAttribute("contenteditable");
-    editorState.editingNodeId = null;
-    scheduleRender();
+    updateMetadata(buildGenerationPayload().gameConfig);
   }
 
   function openPrototypeInNewTab() {
@@ -1029,11 +1111,11 @@
   }
 
   async function handleGeneratePrototype() {
-    const updatedGameConfig = getUpdatedGameConfigFromBoard();
+    const payload = buildGenerationPayload();
     const isRegenerating = Boolean(editorState.currentGeneratedHtml);
 
     persistBoardState();
-    updateMetadata(updatedGameConfig);
+    updateMetadata(payload.gameConfig);
 
     if (generateBtn) {
       generateBtn.disabled = true;
@@ -1046,8 +1128,8 @@
     setLoadingOverlay(true, isRegenerating);
     setGenerateStatus(
       isRegenerating
-        ? "Regenerating prototype from the latest board..."
-        : "Generating prototype from the latest board..."
+        ? "Regenerating prototype from linked nodes..."
+        : "Generating prototype from linked nodes..."
     );
 
     try {
@@ -1056,7 +1138,7 @@
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ gameConfig: updatedGameConfig }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -1071,7 +1153,7 @@
         gameFrame.srcdoc = editorState.currentGeneratedHtml;
       }
 
-      setGenerateStatus("Prototype ready. Play it in the floating preview.");
+      setGenerateStatus("Prototype ready. Only linked nodes were sent to generation.");
     } catch (error) {
       console.error("Failed to generate prototype:", error);
       setGenerateStatus(
@@ -1089,23 +1171,19 @@
     }
   }
 
-  function centerBoardOnTitle() {
-    const titleNode = getNodeById("title");
+  function initializeBoard() {
+    const initialConfig = loadInitialConfig();
+    const storedBoard = loadBoardState(initialConfig);
 
-    if (!titleNode) {
-      editorState.pan = defaultPan();
-      scheduleRender();
-      return;
-    }
+    editorState.nodes = storedBoard.nodes;
+    editorState.links = storedBoard.links;
+    editorState.pan = storedBoard.pan;
+    editorState.nodeIdCounter = editorState.nodes.length;
 
-    editorState.pan = {
-      x: window.innerWidth / 2 - (titleNode.x + getNodeWidth(titleNode) / 2),
-      y: window.innerHeight / 2 - (titleNode.y + getNodeHeight(titleNode) / 2) - 60,
-    };
-
-    persistBoardState();
+    updateMetadata(buildGenerationPayload().gameConfig);
+    setGenerateStatus(READY_STATUS);
+    updateOpenInNewTabState();
     scheduleRender();
-    setBoardStatus("Recentered the canvas around the title card.");
   }
 
   function handlePointerMove(event) {
@@ -1153,25 +1231,26 @@
   }
 
   function handleCanvasPointerDown(event) {
-    if (event.button !== 0 || event.target.closest(".board-node")) {
+    if (event.button !== 0) {
       return;
     }
 
-    if (editorState.editingNodeId) {
-      finishNodeEdit(true);
-    }
-
-    if (editorState.linking) {
-      cancelLinkMode("Link mode cancelled.");
+    if (event.target.closest(".board-node") || event.target.closest(".board-link")) {
+      return;
     }
 
     hideContextMenu();
-    clearSelection();
+
+    if (editorState.linking) {
+      cancelLinkMode();
+    }
+
+    editorState.selectedNodeId = null;
     editorState.panning = {
       startClient: { x: event.clientX, y: event.clientY },
       startPan: { x: editorState.pan.x, y: editorState.pan.y },
     };
-    setBoardStatus("Panning the canvas.");
+    scheduleRender();
   }
 
   function handleNodePointerDown(event) {
@@ -1186,17 +1265,10 @@
     }
 
     const nodeId = nodeElement.dataset.nodeId;
+    const node = getNodeById(nodeId);
 
-    if (!nodeId) {
+    if (!node) {
       return;
-    }
-
-    if (editorState.editingNodeId) {
-      if (editorState.editingNodeId !== nodeId) {
-        finishNodeEdit(true);
-      } else {
-        return;
-      }
     }
 
     if (editorState.linking) {
@@ -1205,108 +1277,123 @@
       return;
     }
 
-    const node = getNodeById(nodeId);
+    hideContextMenu();
 
-    if (!node) {
+    const isEditableLabelTarget = Boolean(
+      event.target.closest('.board-node__label[data-editable="true"]')
+    );
+    const wasSelected = editorState.selectedNodeId === nodeId;
+
+    if (isEditableLabelTarget) {
+      if (!wasSelected) {
+        editorState.selectedNodeId = nodeId;
+        scheduleRender();
+        event.preventDefault();
+      }
       return;
     }
 
     event.preventDefault();
-    hideContextMenu();
     bringNodeToFront(nodeId);
-    setSelectedNode(nodeId);
+    editorState.selectedNodeId = nodeId;
     editorState.draggingNodeId = nodeId;
     editorState.dragPointerOffset = {
       x: event.clientX - editorState.pan.x - node.x,
       y: event.clientY - editorState.pan.y - node.y,
     };
-    setBoardStatus("Dragging node.");
+    scheduleRender();
   }
 
   function handleBoardContextMenu(event) {
+    if (event.target.closest(".board-link")) {
+      return;
+    }
+
     event.preventDefault();
+    cancelLinkMode();
 
     const nodeElement = event.target.closest(".board-node");
 
     if (nodeElement) {
       const nodeId = nodeElement.dataset.nodeId;
-      const node = getNodeById(nodeId);
 
-      if (!node) {
+      if (!nodeId) {
         return;
       }
 
-      setSelectedNode(nodeId);
-      showContextMenu(event.clientX, event.clientY, [
-        {
-          label: "Start Link",
-          symbol: "->",
-          action: function () {
-            startLinkMode(nodeId);
-          },
-        },
-        {
-          label: "Remove Links",
-          symbol: "x",
-          action: function () {
-            const removed = removeLinksForNode(nodeId);
-            persistBoardState();
-            scheduleRender();
-            setBoardStatus(removed ? "Removed the node links." : "That node had no links to remove.");
-          },
-        },
-        !node.locked
-          ? {
-              label: "Delete Node",
-              symbol: "-",
-              action: function () {
-                deleteNode(nodeId);
-              },
-            }
-          : null,
-      ].filter(Boolean));
+      editorState.selectedNodeId = nodeId;
+      scheduleRender();
+      showContextMenu(event.clientX, event.clientY, {
+        kind: "node",
+        nodeId,
+      });
       return;
     }
 
     editorState.selectedNodeId = null;
-    if (nodeColorMenu) {
-      nodeColorMenu.classList.add("hidden");
-    }
     scheduleRender();
-
-    showContextMenu(event.clientX, event.clientY, [
-      {
-        label: "Add Node",
-        symbol: "+",
-        action: function () {
-          addNodeAt(event.clientX, event.clientY);
-        },
-      },
-    ]);
+    showContextMenu(event.clientX, event.clientY, {
+      kind: "canvas",
+      worldPoint: clientToWorld(event.clientX, event.clientY),
+    });
   }
 
   function handleDocumentPointerDown(event) {
     if (!event.target.closest(".context-menu")) {
       hideContextMenu();
     }
-
-    if (!event.target.closest(".floating-palette") && !event.target.closest(".board-node")) {
-      nodeColorMenu.classList.add("hidden");
-    }
   }
 
-  function initializeBoard() {
-    const initialConfig = loadInitialConfig();
-    const storedBoard = loadBoardState(initialConfig);
+  function handleContextMenuClick(event) {
+    if (!editorState.contextMenu) {
+      return;
+    }
 
-    editorState.nodes = storedBoard.nodes;
-    editorState.links = storedBoard.links;
-    editorState.pan = storedBoard.pan;
+    const swatch = event.target.closest("[data-color-id]");
 
-    updateMetadata(getUpdatedGameConfigFromBoard());
-    setGenerateStatus(READY_STATUS);
-    updateOpenInNewTabState();
-    scheduleRender();
+    if (swatch && editorState.contextMenu.kind === "node") {
+      const node = getNodeById(editorState.contextMenu.nodeId);
+
+      if (!node) {
+        return;
+      }
+
+      node.colorId = swatch.dataset.colorId;
+      persistBoardState();
+      scheduleRender();
+      hideContextMenu();
+      return;
+    }
+
+    const button = event.target.closest("[data-menu-action]");
+
+    if (!button) {
+      return;
+    }
+
+    const action = button.dataset.menuAction;
+    const context = editorState.contextMenu;
+
+    hideContextMenu();
+
+    if (action === "add-node" && context?.kind === "canvas" && context.worldPoint) {
+      addNodeAtWorld(context.worldPoint.x, context.worldPoint.y);
+      return;
+    }
+
+    if (action === "start-link" && context?.kind === "node") {
+      startLinkMode(context.nodeId);
+      return;
+    }
+
+    if (action === "delete-node" && context?.kind === "node") {
+      deleteNode(context.nodeId);
+      return;
+    }
+
+    if (action === "delete-link" && context?.kind === "link") {
+      deleteLink(context.linkId);
+    }
   }
 
   if (generateBtn) {
@@ -1317,105 +1404,46 @@
     openTabBtn.addEventListener("click", openPrototypeInNewTab);
   }
 
-  if (deleteSelectedBtn) {
-    deleteSelectedBtn.addEventListener("click", function () {
-      deleteNode();
-    });
-  }
+  boardCanvas.addEventListener("pointerdown", handleCanvasPointerDown);
+  boardCanvas.addEventListener("contextmenu", handleBoardContextMenu);
 
-  if (centerBoardBtn) {
-    centerBoardBtn.addEventListener("click", centerBoardOnTitle);
-  }
+  boardNodes.addEventListener("pointerdown", handleNodePointerDown);
+  boardNodes.addEventListener("input", function (event) {
+    const labelElement = event.target.closest('.board-node__label[data-editable="true"]');
 
-  if (boardCanvas) {
-    boardCanvas.addEventListener("pointerdown", handleCanvasPointerDown);
-    boardCanvas.addEventListener("contextmenu", handleBoardContextMenu);
-  }
+    if (!labelElement) {
+      return;
+    }
 
-  if (boardNodes) {
-    boardNodes.addEventListener("pointerdown", handleNodePointerDown);
-    boardNodes.addEventListener("dblclick", function (event) {
-      const nodeElement = event.target.closest(".board-node");
+    syncEditableLabel(labelElement);
+  });
+  boardNodes.addEventListener(
+    "blur",
+    function (event) {
+      const labelElement = event.target.closest('.board-node__label[data-editable="true"]');
 
-      if (!nodeElement) {
+      if (!labelElement) {
         return;
       }
 
-      beginNodeEdit(nodeElement.dataset.nodeId);
-    });
+      syncEditableLabel(labelElement, { commit: true });
+    },
+    true
+  );
+  boardNodes.addEventListener("keydown", function (event) {
+    const labelElement = event.target.closest('.board-node__label[data-editable="true"]');
 
-    boardNodes.addEventListener("keydown", function (event) {
-      const isEditableLabel =
-        event.target.classList && event.target.classList.contains("board-node__label");
+    if (!labelElement) {
+      return;
+    }
 
-      if (!isEditableLabel || editorState.editingNodeId === null) {
-        return;
-      }
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      labelElement.blur();
+    }
+  });
 
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        finishNodeEdit(true);
-      }
-
-      if (event.key === "Escape") {
-        event.preventDefault();
-        finishNodeEdit(false);
-      }
-    });
-
-    boardNodes.addEventListener(
-      "blur",
-      function (event) {
-        const isEditableLabel =
-          event.target.classList && event.target.classList.contains("board-node__label");
-
-        if (isEditableLabel && editorState.editingNodeId) {
-          finishNodeEdit(true);
-        }
-      },
-      true
-    );
-  }
-
-  if (canvasContextMenu) {
-    canvasContextMenu.addEventListener("click", function (event) {
-      const button = event.target.closest("[data-menu-index]");
-
-      if (!button) {
-        return;
-      }
-
-      const index = Number(button.dataset.menuIndex);
-      const item = editorState.contextMenuItems[index];
-
-      if (item && typeof item.action === "function") {
-        item.action();
-      }
-
-      hideContextMenu();
-    });
-  }
-
-  if (nodeColorSwatches) {
-    nodeColorSwatches.addEventListener("click", function (event) {
-      const swatch = event.target.closest("[data-color-id]");
-
-      if (!swatch || !editorState.selectedNodeId) {
-        return;
-      }
-
-      const node = getNodeById(editorState.selectedNodeId);
-
-      if (!node) {
-        return;
-      }
-
-      node.colorId = swatch.dataset.colorId;
-      persistBoardState();
-      scheduleRender();
-      setBoardStatus("Updated the node color.");
-    });
-  }
+  canvasContextMenu.addEventListener("click", handleContextMenuClick);
 
   document.addEventListener("pointerdown", handleDocumentPointerDown);
   window.addEventListener("pointermove", handlePointerMove);
@@ -1424,18 +1452,16 @@
   window.addEventListener("beforeunload", clearPrototypeUrl);
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") {
-      if (editorState.editingNodeId) {
-        finishNodeEdit(false);
-        return;
-      }
+      hideContextMenu();
 
       if (editorState.linking) {
         cancelLinkMode();
         return;
       }
 
-      hideContextMenu();
-      clearSelection();
+      editorState.selectedNodeId = null;
+      scheduleRender();
+      return;
     }
 
     if ((event.key === "Delete" || event.key === "Backspace") && editorState.selectedNodeId) {

@@ -43,15 +43,7 @@
           <button id="generate-btn" type="button" class="editor-button editor-button--primary">
             Generate
           </button>
-          <button id="open-tab-btn" type="button" class="editor-button" disabled>
-            Open Tab
-          </button>
-          <button id="delete-selected-btn" type="button" class="editor-button">
-            Delete Selected
-          </button>
-          <button id="center-board-btn" type="button" class="editor-button">
-            Center View
-          </button>
+          <button id="open-tab-btn" type="button" class="editor-button" disabled>Open Tab</button>
         </div>
 
         <div class="editor-stats">
@@ -64,16 +56,6 @@
             <strong id="link-count" class="editor-stat__value">0</strong>
           </div>
         </div>
-      </section>
-
-      <section class="editor-card glass-card board-status-card" aria-label="Board guidance">
-        <div class="editor-card__header">
-          <p class="editor-eyebrow">Flow</p>
-        </div>
-        <p id="mindmap-status" class="editor-status-copy">
-          Left-drag the background to pan. Drag cards freely, right-click empty space to add a
-          note, right-click a node to start linking, and click a node to recolor it.
-        </p>
         <p id="generate-status" class="editor-status-copy editor-status-copy--muted">
           Ready to generate a playable prototype.
         </p>
@@ -97,11 +79,6 @@
           </div>
         </div>
       </section>
-
-      <div id="node-color-menu" class="floating-palette hidden" role="dialog" aria-label="Node color picker">
-        <p class="floating-palette__label">Color</p>
-        <div id="node-color-swatches" class="floating-palette__swatches"></div>
-      </div>
 
       <div id="canvas-context-menu" class="context-menu hidden" role="menu" aria-label="Canvas menu"></div>
 
