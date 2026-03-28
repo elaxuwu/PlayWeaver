@@ -94,6 +94,17 @@ function extractToken(request, fallbackValue = "") {
     return authHeader.slice(7).trim();
   }
 
+  try {
+    const requestUrl = new URL(request.url);
+    const queryToken = requestUrl.searchParams.get("token");
+
+    if (typeof queryToken === "string" && queryToken.trim()) {
+      return queryToken.trim();
+    }
+  } catch (error) {
+    console.error("Failed to read dashboard token from URL:", error);
+  }
+
   return typeof fallbackValue === "string" ? fallbackValue.trim() : "";
 }
 

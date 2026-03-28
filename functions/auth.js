@@ -157,11 +157,11 @@ async function handleSignup(context, payload) {
   };
 
   await storeUser(context, userRecord);
-  const token = await createSession(context, userRecord.id);
+  const sessionToken = await createSession(context, userRecord.id);
 
   return jsonResponse({
     ok: true,
-    token,
+    token: sessionToken,
     user: sanitizeUser(userRecord),
   });
 }
@@ -186,11 +186,11 @@ async function handleLogin(context, payload) {
     return jsonResponse({ error: "Invalid email or password." }, 401);
   }
 
-  const token = await createSession(context, userRecord.id);
+  const sessionToken = await createSession(context, userRecord.id);
 
   return jsonResponse({
     ok: true,
-    token,
+    token: sessionToken,
     user: sanitizeUser(userRecord),
   });
 }

@@ -122,6 +122,10 @@ async function handleLoginSubmit(event) {
       password: document.getElementById("login-password")?.value || "",
     });
 
+    if (typeof payload?.token !== "string" || !payload.token.trim()) {
+      throw new Error("Login succeeded but no session token was returned.");
+    }
+
     storeSession(payload.token, payload.user);
     window.location.href = "/dashboard.html";
   } catch (error) {
@@ -140,6 +144,10 @@ async function handleSignupSubmit(event) {
       password: document.getElementById("signup-password")?.value || "",
       passwordConfirm: document.getElementById("signup-password-confirm")?.value || "",
     });
+
+    if (typeof payload?.token !== "string" || !payload.token.trim()) {
+      throw new Error("Signup succeeded but no session token was returned.");
+    }
 
     storeSession(payload.token, payload.user);
     window.location.href = "/dashboard.html";

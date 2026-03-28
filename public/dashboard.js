@@ -60,6 +60,20 @@ function buildShareUrl(projectId) {
   return url.toString();
 }
 
+function buildDashboardApiUrl(projectId = "", token = getToken()) {
+  const url = new URL("/dashboard", window.location.origin);
+
+  if (projectId) {
+    url.searchParams.set("id", projectId);
+  }
+
+  if (token) {
+    url.searchParams.set("token", token);
+  }
+
+  return url.toString();
+}
+
 async function copyShareLink(projectId) {
   const shareUrl = buildShareUrl(projectId);
 
@@ -160,7 +174,8 @@ async function fetchProjects() {
     return;
   }
 
-  const response = await fetch("/dashboard", {
+  const apiUrl = buildDashboardApiUrl("", token);
+  const response = await fetch(apiUrl, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
@@ -183,13 +198,14 @@ async function fetchProjects() {
 }
 
 async function togglePinned(projectId) {
+  const token = getToken();
   const response = await fetch("/dashboard", {
     method: "PATCH",
     headers: {
-      Authorization: `Bearer ${getToken()}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ id: projectId }),
+    body: JSON.stringify({ id: projectId, token }),
   });
 
   if (response.status === 401) {
@@ -204,10 +220,11 @@ async function togglePinned(projectId) {
 }
 
 async function deleteProject(projectId) {
-  const response = await fetch(`/dashboard?id=${encodeURIComponent(projectId)}`, {
+  const token = getToken();
+  const response = await fetch(buildDashboardApiUrl(projectId, token), {
     method: "DELETE",
     headers: {
-      Authorization: `Bearer ${getToken()}`,
+      Authorization: `Bearer ${token}`,
     },
   });
 
