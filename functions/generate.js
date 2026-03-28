@@ -49,9 +49,13 @@ export async function onRequestPost(context) {
       });
     }
 
+    if (!context.env.OPENAI_PROXY_BASE_URL) {
+      throw new Error("Missing OPENAI_PROXY_BASE_URL environment variable");
+    }
+
     const client = new OpenAI({
-      apiKey: "proxy-handles-key",
-      baseURL: "https://openaiproxy.ngocthienbaod.workers.dev/v1",
+      apiKey: context.env.OPENAI_PROXY_API_KEY || "proxy-handles-key",
+      baseURL: context.env.OPENAI_PROXY_BASE_URL,
     });
 
     const hasExistingHtml = typeof currentHtml === "string" && currentHtml.trim();
