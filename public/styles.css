@@ -1167,7 +1167,7 @@ body.editor-app {
 
 .editor-assistant {
   position: fixed;
-  right: 1.25rem;
+  left: 1.25rem;
   bottom: 6.45rem;
   z-index: 62;
   display: flex;
@@ -1188,6 +1188,19 @@ body.editor-app {
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
+  transform-origin: bottom left;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
+}
+
+.editor-assistant.hidden {
+  display: flex !important;
+  opacity: 0;
+  transform: translateY(1rem) scale(0.94);
+  pointer-events: none;
 }
 
 .editor-assistant__header {
@@ -1266,7 +1279,7 @@ body.editor-app {
 
 .editor-assistant-fab {
   position: fixed;
-  right: 1.25rem;
+  left: 1.25rem;
   bottom: 1.25rem;
   z-index: 63;
   display: inline-flex;
@@ -1292,12 +1305,21 @@ body.editor-app {
   transition:
     transform 160ms ease,
     border-color 160ms ease,
-    background-color 160ms ease;
+    background-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .editor-assistant-fab:hover {
   transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.28);
+}
+
+.editor-assistant-fab[aria-expanded="true"] {
+  transform: translateY(-1px) scale(1.04);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow:
+    0 24px 56px rgba(4, 8, 20, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .editor-assistant-fab:focus-visible {
@@ -1311,6 +1333,11 @@ body.editor-app {
 .editor-assistant-fab svg {
   width: 1.4rem;
   height: 1.4rem;
+  transition: transform 220ms ease;
+}
+
+.editor-assistant-fab[aria-expanded="true"] svg {
+  transform: rotate(12deg) scale(1.05);
 }
 
 .auth-shell,
@@ -1699,14 +1726,13 @@ body.editor-app {
   }
 
   .editor-assistant {
-    right: 1rem;
-    bottom: 5.9rem;
     left: 1rem;
+    bottom: 5.9rem;
     width: auto;
   }
 
   .editor-assistant-fab {
-    right: 1rem;
+    left: 1rem;
     bottom: 1rem;
   }
 }

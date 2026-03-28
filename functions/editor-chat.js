@@ -125,9 +125,13 @@ export async function onRequestPost(context) {
       return jsonResponse({ error: "message is required" }, 400);
     }
 
+    if (!context.env.FEATHERLESS_API_KEY) {
+      throw new Error("Missing FEATHERLESS_API_KEY environment variable");
+    }
+
     const client = new OpenAI({
-      apiKey: "proxy-handles-key",
-      baseURL: "https://openaiproxy.ngocthienbaod.workers.dev/v1",
+      apiKey: context.env.FEATHERLESS_API_KEY,
+      baseURL: "https://api.featherless.ai/v1",
     });
 
     const completion = await client.chat.completions.create({
