@@ -61,7 +61,7 @@ async function executeRedisCommand(context, command) {
 
 export async function onRequestPost(context) {
   try {
-    const { id, html } = await context.request.json();
+    const { id, html, editorState, gameConfig } = await context.request.json();
     const safeId = normalizeId(id);
 
     if (!safeId) {
@@ -72,7 +72,23 @@ export async function onRequestPost(context) {
       return jsonResponse({ error: "html must be a string" }, 400);
     }
 
-    await executeRedisCommand(context, ["SET", buildStateKey(safeId), html]);
+    if (!editorState || typeof editorState !== "object") {
+      return jsonResponse({ error: "editorState must be an object" }, 400);
+    }
+
+    if (!gameConfig || typeof gameConfig !== "object") {
+      return jsonResponse({ error: "gameConfig must be an object" }, 400);
+    }
+
+    await executeRedisCommand(context, [
+      "SET",
+      buildStateKey(safeId),
+      JSON.stringify({
+        html,
+        editorState,
+        gameConfig,
+      }),
+    ]);
 
     return jsonResponse({
       ok: true,
@@ -98,9 +114,9 @@ export async function onRequestGet(context) {
     }
 
     const redisResponse = await executeRedisCommand(context, ["GET", buildStateKey(safeId)]);
-    const html = typeof redisResponse?.result === "string" ? redisResponse.result : null;
+    const storedValue = typeof redisResponse?.result === "string" ? redisResponse.result : null;
 
-    if (html === null) {
+    if (!storedValue) {
       return jsonResponse(
         {
           error: "state not found",
@@ -110,9 +126,35 @@ export async function onRequestGet(context) {
       );
     }
 
+    let parsedState = null;
+
+    try {
+      parsedState = JSON.parse(storedValue);
+    } catch {
+      parsedState = null;
+    }
+
+    if (!parsedState || typeof parsedState !== "object") {
+      return jsonResponse(
+        {
+          error: "state payload is invalid",
+          id: safeId,
+        },
+        500
+      );
+    }
+
     return jsonResponse({
       id: safeId,
-      html,
+      html: typeof parsedState.html === "string" ? parsedState.html : "",
+      editorState:
+        parsedState.editorState && typeof parsedState.editorState === "object"
+          ? parsedState.editorState
+          : null,
+      gameConfig:
+        parsedState.gameConfig && typeof parsedState.gameConfig === "object"
+          ? parsedState.gameConfig
+          : null,
     });
   } catch (error) {
     return jsonResponse(

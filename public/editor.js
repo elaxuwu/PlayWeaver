@@ -6,6 +6,7 @@
   const GRID_SIZE = 56;
   const MIN_ZOOM = 0.45;
   const MAX_ZOOM = 2.4;
+  const CLOUD_SYNC_DEBOUNCE_MS = 1500;
   const DEBUG_SEQUENCE = ["w", "w", "a", "a", "s", "s", "d", "d"];
   const FIELD_DEFINITIONS = [
     { key: "gameName", label: "Game Name" },
@@ -95,6 +96,11 @@
   const previewBackdrop = document.getElementById("preview-backdrop");
   const previewSizeToggleBtn = document.getElementById("preview-size-toggle-btn");
   const previewSizeToggleIcon = document.getElementById("preview-size-toggle-icon");
+  const editNodeModal = document.getElementById("edit-node-modal");
+  const editNodeModalBackdrop = document.getElementById("edit-node-modal-backdrop");
+  const editNodeInput = document.getElementById("edit-node-input");
+  const editNodeSaveBtn = document.getElementById("edit-node-save-btn");
+  const editNodeCancelBtn = document.getElementById("edit-node-cancel-btn");
   const debugPanel = document.getElementById("debug-panel");
   const debugPayload = document.getElementById("debug-payload");
 
@@ -117,9 +123,11 @@
     nodeIdCounter: 0,
     renderQueued: false,
     contextMenu: null,
+    editingNodeId: null,
     debugVisible: false,
     debugKeyHistory: [],
   };
+  let cloudSyncTimeoutId = null;
 
   function defaultPan() {
     return {
@@ -692,25 +700,42 @@
     };
   }
 
-  function persistBoardState() {
-    const payload = buildGenerationPayload();
+  function buildPersistedBoardState(gameConfig) {
+    return {
+      version: EDITOR_STATE_VERSION,
+      nodes: editorState.nodes,
+      links: editorState.links,
+      pan: editorState.pan,
+      zoom: editorState.zoom,
+      signature: createConfigSignature(gameConfig),
+    };
+  }
 
+  function writeProjectStateToLocalStorage(boardState, gameConfig) {
     try {
-      localStorage.setItem(
-        EDITOR_STATE_KEY,
-        JSON.stringify({
-          version: EDITOR_STATE_VERSION,
-          nodes: editorState.nodes,
-          links: editorState.links,
-          pan: editorState.pan,
-          zoom: editorState.zoom,
-          signature: createConfigSignature(payload.gameConfig),
-        })
-      );
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload.gameConfig));
+      localStorage.setItem(EDITOR_STATE_KEY, JSON.stringify(boardState));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(gameConfig));
     } catch (error) {
       console.error("Failed to persist editor state:", error);
     }
+  }
+
+  function scheduleCloudSync() {
+    if (cloudSyncTimeoutId) {
+      window.clearTimeout(cloudSyncTimeoutId);
+    }
+
+    cloudSyncTimeoutId = window.setTimeout(() => {
+      syncStateToCloud().catch((error) => {
+        console.error("Failed to sync project state to cloud:", error);
+      });
+    }, CLOUD_SYNC_DEBOUNCE_MS);
+  }
+
+  function persistBoardState() {
+    const payload = buildGenerationPayload();
+    writeProjectStateToLocalStorage(buildPersistedBoardState(payload.gameConfig), payload.gameConfig);
+    scheduleCloudSync();
   }
 
   function updateCounts() {
@@ -787,13 +812,13 @@
     updateOpenInNewTabState();
   }
 
-  async function saveGeneratedPrototypeState(html) {
-    const normalizedHtml = typeof html === "string" ? html.trim() : "";
-
-    if (!normalizedHtml) {
-      return "";
+  async function syncStateToCloud() {
+    if (cloudSyncTimeoutId) {
+      window.clearTimeout(cloudSyncTimeoutId);
+      cloudSyncTimeoutId = null;
     }
 
+    const payload = buildGenerationPayload();
     const stateId = ensureStateIdInUrl();
     const response = await fetch("/state", {
       method: "POST",
@@ -802,7 +827,9 @@
       },
       body: JSON.stringify({
         id: stateId,
-        html: normalizedHtml,
+        html: typeof editorState.currentGeneratedHtml === "string" ? editorState.currentGeneratedHtml : "",
+        editorState: buildPersistedBoardState(payload.gameConfig),
+        gameConfig: payload.gameConfig,
       }),
     });
 
@@ -814,6 +841,33 @@
     return stateId;
   }
 
+  function applyCloudProjectState(projectState) {
+    const normalizedBoardState = normalizeBoardState(projectState?.editorState);
+    const normalizedGameConfig =
+      projectState?.gameConfig && typeof projectState.gameConfig === "object"
+        ? normalizeGameConfig(projectState.gameConfig)
+        : getDefaultGameConfig();
+
+    if (normalizedBoardState) {
+      editorState.nodes = normalizedBoardState.nodes;
+      editorState.links = normalizedBoardState.links;
+      editorState.pan = normalizedBoardState.pan;
+      editorState.zoom = normalizedBoardState.zoom || 1;
+      editorState.nodeIdCounter = normalizedBoardState.nodes.length;
+      editorState.selectedNodeId = null;
+      editorState.draggingNodeId = null;
+      editorState.panning = null;
+      editorState.linking = null;
+      editorState.contextMenu = null;
+      editorState.editingNodeId = null;
+    }
+
+    setCurrentGeneratedHtml(typeof projectState?.html === "string" ? projectState.html : "");
+    writeProjectStateToLocalStorage(buildPersistedBoardState(normalizedGameConfig), normalizedGameConfig);
+    updateMetadata(normalizedGameConfig);
+    scheduleRender();
+  }
+
   async function loadPrototypeStateFromUrl() {
     const stateId = getStateIdFromUrl();
 
@@ -822,7 +876,7 @@
     }
 
     try {
-      setGenerateStatus("Loading saved prototype...");
+      setGenerateStatus("Loading saved project...");
       const response = await fetch(`/state?id=${encodeURIComponent(stateId)}`, {
         headers: {
           Accept: "application/json",
@@ -841,19 +895,19 @@
 
       const payload = await response.json();
 
-      if (typeof payload?.html !== "string" || !payload.html.trim()) {
+      if (!payload || typeof payload !== "object") {
         setGenerateStatus(READY_STATUS);
         return;
       }
 
-      setCurrentGeneratedHtml(payload.html);
-      setGenerateStatus("Loaded saved prototype from this URL.");
+      applyCloudProjectState(payload);
+      setGenerateStatus("Loaded saved project from this URL.");
     } catch (error) {
-      console.error("Failed to load saved prototype:", error);
+      console.error("Failed to load saved project:", error);
       setGenerateStatus(
         error instanceof Error && error.message
-          ? `Saved prototype load failed: ${error.message}`
-          : "Unable to load the saved prototype from this URL."
+          ? `Saved project load failed: ${error.message}`
+          : "Unable to load the saved project from this URL."
       );
     }
   }
@@ -957,10 +1011,7 @@
           .join(" ");
         const kindLabel =
           node.kind === "title" ? "Game Title" : node.kind === "field" ? "Category" : "Node";
-        const isEditable = node.kind === "note";
-        const labelAttributes = isEditable
-          ? 'contenteditable="true" data-editable="true"'
-          : 'data-editable="false"';
+        const labelAttributes = 'data-editable="false"';
 
         return `
           <article
@@ -985,10 +1036,6 @@
       })
       .join("");
 
-    boardNodes.querySelectorAll('.board-node__label[data-editable="true"]').forEach((labelElement) => {
-      labelElement.addEventListener("mousedown", handleEditableLabelMouseDown);
-      labelElement.addEventListener("pointerdown", handleEditableLabelPointerDown);
-    });
   }
 
   function buildLinkPath(start, end) {
@@ -1103,6 +1150,10 @@
     return Boolean(node && node.kind === "note" && !node.locked);
   }
 
+  function canEditNode(node) {
+    return Boolean(node && (node.kind === "note" || node.kind === "title"));
+  }
+
   function renderContextMenu(context) {
     if (!context) {
       return "";
@@ -1123,9 +1174,13 @@
         return "";
       }
 
+      const canEdit = canEditNode(node);
       const canLinkFromNode = canStartManualLink(node.id);
 
       return `
+        ${renderContextButton("edit-node", "E", "Edit", {
+          disabled: !canEdit,
+        })}
         ${renderContextButton("start-link", "->", "Start Link", {
           disabled: !canLinkFromNode,
         })}
@@ -1303,6 +1358,50 @@
     scheduleRender();
   }
 
+  function closeEditModal() {
+    editorState.editingNodeId = null;
+
+    if (editNodeModal) {
+      editNodeModal.classList.add("hidden");
+    }
+  }
+
+  function openEditModal(nodeId) {
+    const node = getNodeById(nodeId);
+
+    if (!canEditNode(node) || !editNodeModal || !editNodeInput) {
+      return;
+    }
+
+    editorState.editingNodeId = nodeId;
+    editNodeInput.value = node.label;
+    editNodeModal.classList.remove("hidden");
+    hideContextMenu();
+
+    window.requestAnimationFrame(() => {
+      editNodeInput.focus();
+      editNodeInput.select();
+    });
+  }
+
+  function saveEditedNodeLabel() {
+    const node = getNodeById(editorState.editingNodeId);
+
+    if (!canEditNode(node) || !editNodeInput) {
+      closeEditModal();
+      return;
+    }
+
+    node.label = normalizeStoredValue(
+      editNodeInput.value,
+      node.kind === "title" ? "Untitled Game" : "New note"
+    );
+
+    persistBoardState();
+    scheduleRender();
+    closeEditModal();
+  }
+
   function startLinkMode(fromNodeId) {
     if (!canStartManualLink(fromNodeId)) {
       return;
@@ -1466,16 +1565,16 @@
       let saveError = null;
 
       try {
-        await saveGeneratedPrototypeState(generatedHtml);
+        await syncStateToCloud();
       } catch (error) {
         saveError = error;
-        console.error("Failed to save generated prototype:", error);
+        console.error("Failed to sync generated project state:", error);
       }
 
       setGenerateStatus(
         saveError instanceof Error && saveError.message
-          ? `Prototype ready, but saving failed: ${saveError.message}`
-          : "Prototype ready. Only linked nodes were sent to generation and the preview was saved."
+          ? `Prototype ready, but cloud sync failed: ${saveError.message}`
+          : "Prototype ready. Only linked nodes were sent to generation and the full project was synced."
       );
     } catch (error) {
       console.error("Failed to generate prototype:", error);
@@ -1742,6 +1841,11 @@
       return;
     }
 
+    if (action === "edit-node" && context?.kind === "node") {
+      openEditModal(context.nodeId);
+      return;
+    }
+
     if (action === "start-link" && context?.kind === "node") {
       startLinkMode(context.nodeId);
       return;
@@ -1784,42 +1888,35 @@
   boardCanvas.addEventListener("wheel", handleCanvasWheel, { passive: false });
 
   boardNodes.addEventListener("pointerdown", handleNodePointerDown);
-  boardNodes.addEventListener("input", function (event) {
-    const labelElement = event.target.closest('.board-node__label[data-editable="true"]');
 
-    if (!labelElement) {
-      return;
-    }
+  canvasContextMenu.addEventListener("click", handleContextMenuClick);
 
-    syncEditableLabel(labelElement);
-  });
-  boardNodes.addEventListener(
-    "blur",
-    function (event) {
-      const labelElement = event.target.closest('.board-node__label[data-editable="true"]');
+  if (editNodeSaveBtn) {
+    editNodeSaveBtn.addEventListener("click", saveEditedNodeLabel);
+  }
 
-      if (!labelElement) {
+  if (editNodeCancelBtn) {
+    editNodeCancelBtn.addEventListener("click", closeEditModal);
+  }
+
+  if (editNodeModalBackdrop) {
+    editNodeModalBackdrop.addEventListener("click", closeEditModal);
+  }
+
+  if (editNodeInput) {
+    editNodeInput.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveEditedNodeLabel();
         return;
       }
 
-      syncEditableLabel(labelElement, { commit: true });
-    },
-    true
-  );
-  boardNodes.addEventListener("keydown", function (event) {
-    const labelElement = event.target.closest('.board-node__label[data-editable="true"]');
-
-    if (!labelElement) {
-      return;
-    }
-
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      labelElement.blur();
-    }
-  });
-
-  canvasContextMenu.addEventListener("click", handleContextMenuClick);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeEditModal();
+      }
+    });
+  }
 
   document.addEventListener("pointerdown", handleDocumentPointerDown);
   window.addEventListener("pointermove", handlePointerMove);
@@ -1828,6 +1925,11 @@
   window.addEventListener("load", loadPrototypeStateFromUrl);
   window.addEventListener("beforeunload", clearPrototypeUrl);
   document.addEventListener("keydown", function (event) {
+    if (!editNodeModal?.classList.contains("hidden") && event.key === "Escape") {
+      closeEditModal();
+      return;
+    }
+
     if (!event.metaKey && !event.ctrlKey && !event.altKey) {
       const normalizedKey = String(event.key || "").toLowerCase();
 

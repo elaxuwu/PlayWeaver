@@ -106,6 +106,39 @@
 
       <div id="preview-backdrop" class="preview-backdrop" aria-hidden="true"></div>
 
+      <div
+        id="edit-node-modal"
+        class="edit-modal hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-node-modal-title"
+      >
+        <div id="edit-node-modal-backdrop" class="edit-modal__backdrop"></div>
+        <div class="edit-modal__panel glass-card">
+          <div class="edit-modal__header">
+            <p class="editor-eyebrow">Node Editor</p>
+            <h2 id="edit-node-modal-title" class="edit-modal__title">Edit Text</h2>
+          </div>
+          <input
+            id="edit-node-input"
+            class="edit-modal__input"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <div class="edit-modal__actions">
+            <button
+              id="edit-node-save-btn"
+              type="button"
+              class="editor-button editor-button--primary"
+            >
+              Save
+            </button>
+            <button id="edit-node-cancel-btn" type="button" class="editor-button">Cancel</button>
+          </div>
+        </div>
+      </div>
+
       <div id="canvas-context-menu" class="context-menu hidden" role="menu" aria-label="Canvas menu"></div>
 
       <div id="link-hint" class="link-hint hidden" aria-live="polite">
