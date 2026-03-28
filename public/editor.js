@@ -778,6 +778,12 @@
     return typeof stateId === "string" ? stateId.trim() : "";
   }
 
+  function setStateIdInUrl(stateId) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("id", stateId);
+    window.history.replaceState({ stateId }, "", url);
+  }
+
   function ensureStateIdInUrl() {
     const existingId = getStateIdFromUrl();
 
@@ -786,9 +792,13 @@
     }
 
     const nextId = crypto.randomUUID();
-    const url = new URL(window.location.href);
-    url.searchParams.set("id", nextId);
-    window.history.replaceState({ stateId: nextId }, "", url);
+    setStateIdInUrl(nextId);
+    return nextId;
+  }
+
+  function forkStateIdInUrl() {
+    const nextId = crypto.randomUUID();
+    setStateIdInUrl(nextId);
     return nextId;
   }
 
@@ -812,15 +822,12 @@
     updateOpenInNewTabState();
   }
 
-  async function syncStateToCloud() {
-    if (cloudSyncTimeoutId) {
-      window.clearTimeout(cloudSyncTimeoutId);
-      cloudSyncTimeoutId = null;
-    }
+  function getSessionToken() {
+    return localStorage.getItem("playweaverToken") || "";
+  }
 
-    const payload = buildGenerationPayload();
-    const stateId = ensureStateIdInUrl();
-    const response = await fetch("/state", {
+  async function postStateToCloud(stateId, payload) {
+    return fetch("/state", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -830,11 +837,53 @@
         html: typeof editorState.currentGeneratedHtml === "string" ? editorState.currentGeneratedHtml : "",
         editorState: buildPersistedBoardState(payload.gameConfig),
         gameConfig: payload.gameConfig,
+        token: getSessionToken(),
       }),
     });
+  }
+
+  async function syncStateToCloud() {
+    if (cloudSyncTimeoutId) {
+      window.clearTimeout(cloudSyncTimeoutId);
+      cloudSyncTimeoutId = null;
+    }
+
+    const payload = buildGenerationPayload();
+    let stateId = ensureStateIdInUrl();
+    let response = await postStateToCloud(stateId, payload);
+
+    if (response.status === 409) {
+      const conflictBody = await response.text();
+      let parsedConflict = null;
+
+      try {
+        parsedConflict = JSON.parse(conflictBody);
+      } catch (error) {
+        console.error("Failed to parse cloud sync conflict payload:", error);
+      }
+
+      if (parsedConflict?.forkRequired) {
+        stateId = forkStateIdInUrl();
+        response = await postStateToCloud(stateId, payload);
+
+        if (response.ok) {
+          setGenerateStatus(
+            "This project belonged to another account, so PlayWeaver forked your changes into a new project link."
+          );
+          return stateId;
+        }
+      } else {
+        throw new Error(getPrototypeErrorMessage(conflictBody, response.status));
+      }
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
+
+      if (response.status === 401 && window.PlayWeaverAuth?.clearSession) {
+        window.PlayWeaverAuth.clearSession();
+      }
+
       throw new Error(getPrototypeErrorMessage(errorText, response.status));
     }
 
