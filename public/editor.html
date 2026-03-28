@@ -166,20 +166,57 @@
         <div id="editor-assistant-history" class="editor-assistant__history" aria-live="polite"></div>
 
         <form id="editor-assistant-form" class="editor-assistant__form">
-          <input
-            id="editor-assistant-input"
-            class="editor-assistant__input"
-            type="text"
-            autocomplete="off"
-            placeholder='Ask something like "Add a dodging mechanic"'
-          />
-          <button
-            id="editor-assistant-send"
-            type="submit"
-            class="editor-button editor-button--primary"
+          <div
+            id="editor-assistant-image-preview"
+            class="hidden"
+            style="grid-column: 1 / -1; display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 1rem; background: rgba(255, 255, 255, 0.04);"
           >
-            Send
-          </button>
+            <img
+              id="editor-assistant-image-thumb"
+              alt="Attached reference preview"
+              style="width: 3.5rem; height: 3.5rem; object-fit: cover; border-radius: 0.85rem; border: 1px solid rgba(255, 255, 255, 0.14);"
+            />
+            <div style="flex: 1 1 auto; min-width: 0;">
+              <p style="margin: 0; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(248, 251, 255, 0.6);">
+                Image Attached
+              </p>
+              <p
+                id="editor-assistant-image-name"
+                style="margin: 0.2rem 0 0; color: #f8fbff; line-height: 1.4; word-break: break-word;"
+              ></p>
+            </div>
+            <button id="editor-assistant-clear-image" type="button" class="editor-button">
+              Remove
+            </button>
+          </div>
+
+          <div style="grid-column: 1 / -1; display: flex; align-items: stretch; gap: 0.75rem;">
+            <input
+              id="editor-assistant-input"
+              class="editor-assistant__input"
+              type="text"
+              autocomplete="off"
+              placeholder='Ask something like "Add a dodging mechanic"'
+              style="flex: 1 1 auto;"
+            />
+            <input id="editor-assistant-image-input" type="file" accept="image/*" hidden />
+            <button
+              id="editor-assistant-upload"
+              type="button"
+              class="editor-button"
+              aria-label="Upload image"
+              title="Upload image"
+            >
+              Img
+            </button>
+            <button
+              id="editor-assistant-send"
+              type="submit"
+              class="editor-button editor-button--primary"
+            >
+              Send
+            </button>
+          </div>
         </form>
       </section>
 

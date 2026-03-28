@@ -108,6 +108,12 @@
   const editorAssistantHistory = document.getElementById("editor-assistant-history");
   const editorAssistantForm = document.getElementById("editor-assistant-form");
   const editorAssistantInput = document.getElementById("editor-assistant-input");
+  const editorAssistantImageInput = document.getElementById("editor-assistant-image-input");
+  const editorAssistantUpload = document.getElementById("editor-assistant-upload");
+  const editorAssistantImagePreview = document.getElementById("editor-assistant-image-preview");
+  const editorAssistantImageThumb = document.getElementById("editor-assistant-image-thumb");
+  const editorAssistantImageName = document.getElementById("editor-assistant-image-name");
+  const editorAssistantClearImage = document.getElementById("editor-assistant-clear-image");
   const editorAssistantSend = document.getElementById("editor-assistant-send");
   const editorAssistantFab = document.getElementById("editor-assistant-fab");
 
@@ -138,6 +144,7 @@
     assistantChatPending: false,
   };
   let cloudSyncTimeoutId = null;
+  let pendingChatImage = null;
 
   function defaultPan() {
     return {
@@ -153,6 +160,7 @@
     }, {});
 
     config.developerNotes = [];
+    config.imageAssets = [];
     return config;
   }
 
@@ -182,6 +190,28 @@
     normalizedConfig.developerNotes = Array.isArray(config?.developerNotes)
       ? config.developerNotes
           .map((note) => (typeof note === "string" ? note.trim() : ""))
+          .filter(Boolean)
+      : [];
+
+    normalizedConfig.imageAssets = Array.isArray(config?.imageAssets)
+      ? config.imageAssets
+          .map((asset) => {
+            const targetCategory =
+              typeof asset?.targetCategory === "string" ? asset.targetCategory.trim() : "";
+            const imageData = typeof asset?.imageData === "string" ? asset.imageData.trim() : "";
+            const description =
+              typeof asset?.description === "string" ? asset.description.trim() : "";
+
+            if (!targetCategory || !imageData) {
+              return null;
+            }
+
+            return {
+              targetCategory,
+              imageData,
+              description,
+            };
+          })
           .filter(Boolean)
       : [];
 
@@ -274,6 +304,10 @@
   }
 
   function getNodeWidth(node) {
+    if (node.isImageAsset) {
+      return window.innerWidth <= 720 ? 184 : 212;
+    }
+
     if (node.kind === "title") {
       return window.innerWidth <= 720 ? 240 : 272;
     }
@@ -286,6 +320,10 @@
   }
 
   function getNodeHeight(node) {
+    if (node.isImageAsset) {
+      return window.innerWidth <= 720 ? 176 : 194;
+    }
+
     if (node.kind === "title") {
       return 110;
     }
@@ -366,6 +404,9 @@
       y: Number.isFinite(options.y) ? options.y : 0,
       locked: Boolean(options.locked),
       isNote: Boolean(options.isNote),
+      isImageAsset: Boolean(options.isImageAsset),
+      imageData: typeof options.imageData === "string" ? options.imageData : "",
+      targetCategory: typeof options.targetCategory === "string" ? options.targetCategory : "",
       colorId:
         typeof options.colorId === "string" && options.colorId
           ? options.colorId
@@ -504,6 +545,9 @@
           y,
           locked: Boolean(node.locked || kind === "field"),
           isNote: Boolean(node.isNote),
+          isImageAsset: Boolean(node.isImageAsset),
+          imageData: typeof node.imageData === "string" ? node.imageData : "",
+          targetCategory: typeof node.targetCategory === "string" ? node.targetCategory : "",
           colorId: typeof node.colorId === "string" ? node.colorId : DEFAULT_COLORS[kind],
         };
       })
@@ -626,10 +670,71 @@
       editorAssistantInput.disabled = editorState.assistantChatPending;
     }
 
+    if (editorAssistantUpload) {
+      editorAssistantUpload.disabled = editorState.assistantChatPending;
+    }
+
     if (editorAssistantSend) {
       editorAssistantSend.disabled = editorState.assistantChatPending;
       editorAssistantSend.textContent = editorState.assistantChatPending ? "Sending..." : "Send";
     }
+  }
+
+  function renderPendingChatImagePreview(fileName) {
+    if (
+      !editorAssistantImagePreview ||
+      !editorAssistantImageThumb ||
+      !editorAssistantImageName ||
+      !editorAssistantClearImage
+    ) {
+      return;
+    }
+
+    const hasPendingImage = typeof pendingChatImage === "string" && pendingChatImage.trim();
+    editorAssistantImagePreview.classList.toggle("hidden", !hasPendingImage);
+
+    if (!hasPendingImage) {
+      editorAssistantImageThumb.removeAttribute("src");
+      editorAssistantImageName.textContent = "";
+      editorAssistantClearImage.disabled = true;
+      return;
+    }
+
+    editorAssistantImageThumb.src = pendingChatImage;
+    editorAssistantImageName.textContent = fileName || "Attached reference image";
+    editorAssistantClearImage.disabled = false;
+  }
+
+  function clearPendingChatImage() {
+    pendingChatImage = null;
+
+    if (editorAssistantImageInput) {
+      editorAssistantImageInput.value = "";
+    }
+
+    renderPendingChatImagePreview("");
+  }
+
+  function handleAssistantImageSelection(event) {
+    const file = event.target?.files?.[0];
+
+    if (!file) {
+      clearPendingChatImage();
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (loadEvent) {
+      const result = loadEvent?.target?.result;
+      pendingChatImage = typeof result === "string" ? result : null;
+      renderPendingChatImagePreview(file.name);
+    };
+    reader.onerror = function () {
+      pendingChatImage = null;
+      renderPendingChatImagePreview("");
+      setGenerateStatus("Unable to read the selected image file.");
+    };
+    reader.readAsDataURL(file);
   }
 
   function renderEditorAssistantHistory() {
@@ -806,6 +911,41 @@
     return true;
   }
 
+  function addAssistantImageAsset(targetCategory, description, imageData) {
+    const targetNode = findAssistantCategoryNode(targetCategory);
+
+    if (!targetNode || typeof imageData !== "string" || !imageData.trim()) {
+      return false;
+    }
+
+    const targetWidth = getNodeWidth(targetNode);
+    const targetHeight = getNodeHeight(targetNode);
+    const assetWidth = getNodeWidth({ kind: "note", isImageAsset: true });
+    const assetHeight = getNodeHeight({ kind: "note", isImageAsset: true });
+    const angle = Math.random() * Math.PI * 2;
+    const distance = targetCategory === "gameName" ? 210 + Math.random() * 32 : 162 + Math.random() * 32;
+    const targetCenterX = targetNode.x + targetWidth / 2;
+    const targetCenterY = targetNode.y + targetHeight / 2;
+    const nextNode = createNode(description || "Image reference", "Node", {
+      x: targetCenterX + Math.cos(angle) * distance - assetWidth / 2,
+      y: targetCenterY + Math.sin(angle) * distance - assetHeight / 2,
+      colorId: "sky",
+      isImageAsset: true,
+      imageData,
+      targetCategory,
+    });
+
+    editorState.nodes.push(nextNode);
+    editorState.links.push({
+      id: createLinkId(targetNode.id, nextNode.id),
+      from: targetNode.id,
+      to: nextNode.id,
+    });
+    editorState.selectedNodeId = nextNode.id;
+    bringNodeToFront(nextNode.id);
+    return true;
+  }
+
   function removeAssistantNode(label) {
     const targetNode = findNodeByLabel(label);
 
@@ -857,7 +997,7 @@
     return true;
   }
 
-  function executeEditorAssistantActions(actions) {
+  function executeEditorAssistantActions(actions, attachedImageData) {
     if (!Array.isArray(actions) || !actions.length) {
       return;
     }
@@ -890,6 +1030,17 @@
 
       if (action?.type === "ADD_NOTE" && typeof action.text === "string") {
         didChangeBoard = addAssistantNote(action.text) || didChangeBoard;
+        return;
+      }
+
+      if (
+        action?.type === "ADD_IMAGE_ASSET" &&
+        typeof action.targetCategory === "string" &&
+        typeof action.description === "string"
+      ) {
+        didChangeBoard =
+          addAssistantImageAsset(action.targetCategory, action.description, attachedImageData) ||
+          didChangeBoard;
       }
     });
 
@@ -914,6 +1065,20 @@
 
     const messageHistory = buildEditorAssistantRequestHistory();
     const currentGameConfig = buildGenerationPayload().gameConfig;
+    const chatboxGameConfig = {
+      ...currentGameConfig,
+      imageAssets: Array.isArray(currentGameConfig.imageAssets)
+        ? currentGameConfig.imageAssets.map((asset) => ({
+            targetCategory: asset.targetCategory,
+            description: asset.description,
+          }))
+        : [],
+    };
+    const attachedImageData = pendingChatImage;
+    const requestMessage = attachedImageData
+      ? `${message}\n\n[User attached an image reference]`
+      : message;
+    clearPendingChatImage();
     editorAssistantInput.value = "";
     setEditorAssistantOpen(true);
     appendEditorAssistantMessage("user", message);
@@ -926,9 +1091,9 @@
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message,
+          message: requestMessage,
           messageHistory,
-          gameConfig: currentGameConfig,
+          gameConfig: chatboxGameConfig,
         }),
       });
 
@@ -944,7 +1109,10 @@
           : "I am ready to help shape the board.";
 
       appendEditorAssistantMessage("assistant", reply);
-      executeEditorAssistantActions(Array.isArray(payload?.actions) ? payload.actions : []);
+      executeEditorAssistantActions(
+        Array.isArray(payload?.actions) ? payload.actions : [],
+        attachedImageData
+      );
     } catch (error) {
       console.error("Editor assistant request failed:", error);
       appendEditorAssistantMessage(
@@ -1091,6 +1259,17 @@
       .map((node) => normalizeStoredValue(node.label, ""))
       .filter(Boolean);
 
+    gameConfig.imageAssets = editorState.nodes
+      .filter((node) => node.isImageAsset === true && typeof node.imageData === "string" && node.imageData)
+      .map((node) => ({
+        targetCategory:
+          typeof node.targetCategory === "string" && node.targetCategory.trim()
+            ? node.targetCategory.trim()
+            : "gameName",
+        description: normalizeStoredValue(node.label, "Reference image"),
+        imageData: node.imageData,
+      }));
+
     return {
       gameConfig: normalizeGameConfig(gameConfig),
       boardState: {
@@ -1105,6 +1284,9 @@
           y: node.y,
           locked: Boolean(node.locked),
           isNote: Boolean(node.isNote),
+          isImageAsset: Boolean(node.isImageAsset),
+          imageData: typeof node.imageData === "string" ? node.imageData : "",
+          targetCategory: typeof node.targetCategory === "string" ? node.targetCategory : "",
           colorId: node.colorId,
         })),
         links: links.map((link) => ({
@@ -1466,13 +1648,16 @@
       .map((node, index) => {
         const color = node.isNote
           ? getColorToken("gold", node.kind)
-          : getColorToken(node.colorId, node.kind);
+          : node.isImageAsset
+            ? getColorToken("sky", node.kind)
+            : getColorToken(node.colorId, node.kind);
         const position = nodeToScreenPosition(node);
         const selected = node.id === editorState.selectedNodeId;
         const classes = [
           "board-node",
           `board-node--${node.kind}`,
           node.isNote ? "board-node--sticky-note" : "",
+          node.isImageAsset ? "board-node--image-asset" : "",
           selected ? "is-selected" : "",
           node.locked ? "is-locked" : "",
         ]
@@ -1481,12 +1666,27 @@
         const kindLabel =
           node.isNote
             ? "Developer Note"
+            : node.isImageAsset
+              ? "Image Asset"
             : node.kind === "title"
               ? "Game Title"
               : node.kind === "field"
                 ? "Category"
                 : "Node";
         const labelAttributes = 'data-editable="false"';
+        const imageMarkup =
+          node.isImageAsset && node.imageData
+            ? `<img src="${escapeHtml(
+                node.imageData
+              )}" alt="${escapeHtml(
+                node.label
+              )}" style="display:block; width:100%; height:7rem; object-fit:cover; border-radius:0.95rem; margin-bottom:0.75rem; border:1px solid rgba(255,255,255,0.14);" />`
+            : "";
+        const extraStyle = node.isImageAsset
+          ? `width:${getNodeWidth(node)}px; max-width:${getNodeWidth(node)}px; min-height:${getNodeHeight(
+              node
+            )}px;`
+          : "";
 
         return `
           <article
@@ -1500,9 +1700,11 @@
               --node-border:${color.border};
               --node-glow:${color.glow};
               --node-ink:${color.ink};
+              ${extraStyle}
             "
           >
             <span class="board-node__kind">${kindLabel}</span>
+            ${imageMarkup}
             <div class="board-node__label" ${labelAttributes} spellcheck="false">${escapeHtml(
               node.label
             )}</div>
@@ -1993,6 +2195,36 @@
     return responseBody;
   }
 
+  function clearDeveloperNotesAfterGeneration() {
+    const noteIds = new Set(
+      editorState.nodes.filter((node) => node.isNote === true).map((node) => node.id)
+    );
+
+    if (!noteIds.size) {
+      return;
+    }
+
+    editorState.nodes = editorState.nodes.filter((node) => !noteIds.has(node.id));
+    editorState.links = editorState.links.filter(
+      (link) => !noteIds.has(link.from) && !noteIds.has(link.to)
+    );
+
+    if (editorState.selectedNodeId && noteIds.has(editorState.selectedNodeId)) {
+      editorState.selectedNodeId = null;
+    }
+
+    if (editorState.draggingNodeId && noteIds.has(editorState.draggingNodeId)) {
+      editorState.draggingNodeId = null;
+    }
+
+    if (editorState.linking?.fromNodeId && noteIds.has(editorState.linking.fromNodeId)) {
+      editorState.linking = null;
+    }
+
+    persistBoardState();
+    scheduleRender();
+  }
+
   async function handleGeneratePrototype() {
     const payload = buildGenerationPayload();
     const currentHtml =
@@ -2036,6 +2268,7 @@
 
       const generatedHtml = await response.text();
       setCurrentGeneratedHtml(generatedHtml);
+      clearDeveloperNotesAfterGeneration();
 
       let saveError = null;
 
@@ -2082,6 +2315,7 @@
     setGenerateStatus(READY_STATUS);
     setPreviewMaximized(false);
     setEditorAssistantPending(false);
+    renderPendingChatImagePreview("");
     renderEditorAssistantHistory();
     setEditorAssistantOpen(false);
     updateOpenInNewTabState();
@@ -2402,6 +2636,20 @@
 
   if (editorAssistantForm) {
     editorAssistantForm.addEventListener("submit", handleEditorAssistantSubmit);
+  }
+
+  if (editorAssistantUpload && editorAssistantImageInput) {
+    editorAssistantUpload.addEventListener("click", function () {
+      editorAssistantImageInput.click();
+    });
+  }
+
+  if (editorAssistantImageInput) {
+    editorAssistantImageInput.addEventListener("change", handleAssistantImageSelection);
+  }
+
+  if (editorAssistantClearImage) {
+    editorAssistantClearImage.addEventListener("click", clearPendingChatImage);
   }
 
   document.addEventListener("pointerdown", handleDocumentPointerDown);

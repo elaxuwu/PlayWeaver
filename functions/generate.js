@@ -14,6 +14,28 @@ function stripCodeFences(content) {
     .trim();
 }
 
+function buildVisionUserContent(textPrompt, imageAssets) {
+  const content = [
+    {
+      type: "text",
+      text: `${textPrompt}\n\nThe user has uploaded reference images for specific game assets. You MUST draw these assets on the HTML5 canvas using ctx.fillRect, paths, or pixel-art techniques that closely resemble the provided images.`,
+    },
+  ];
+
+  imageAssets.forEach((asset) => {
+    if (typeof asset?.imageData === "string" && asset.imageData.trim()) {
+      content.push({
+        type: "image_url",
+        image_url: {
+          url: asset.imageData,
+        },
+      });
+    }
+  });
+
+  return content;
+}
+
 export async function onRequestPost(context) {
   try {
     const { gameConfig, currentHtml } = await context.request.json();
@@ -33,19 +55,24 @@ export async function onRequestPost(context) {
     });
 
     const hasExistingHtml = typeof currentHtml === "string" && currentHtml.trim();
+    const imageAssets = Array.isArray(gameConfig?.imageAssets) ? gameConfig.imageAssets : [];
+    const hasImageAssets = imageAssets.length > 0;
+    const baseUserText = hasExistingHtml
+      ? `UPDATED game config JSON:\n${JSON.stringify(gameConfig, null, 2)}\n\nEXISTING working HTML game code:\n${currentHtml}`
+      : `Game config JSON:\n${JSON.stringify(gameConfig, null, 2)}`;
     const messages = hasExistingHtml
       ? [
           { role: "system", content: INCREMENTAL_SYSTEM_PROMPT },
           {
             role: "user",
-            content: `UPDATED game config JSON:\n${JSON.stringify(gameConfig, null, 2)}\n\nEXISTING working HTML game code:\n${currentHtml}`,
+            content: hasImageAssets ? buildVisionUserContent(baseUserText, imageAssets) : baseUserText,
           },
         ]
       : [
           { role: "system", content: SYSTEM_PROMPT },
           {
             role: "user",
-            content: `Game config JSON:\n${JSON.stringify(gameConfig, null, 2)}`,
+            content: hasImageAssets ? buildVisionUserContent(baseUserText, imageAssets) : baseUserText,
           },
         ];
 
