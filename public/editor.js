@@ -9,6 +9,9 @@
   const CLOUD_SYNC_DEBOUNCE_MS = 1500;
   const DEBUG_SEQUENCE = ["w", "w", "a", "a", "s", "s", "d", "d"];
   const EDITOR_ASSISTANT_HISTORY_LIMIT = 16;
+  const BASE64_IMAGE_PATTERN = /data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=_-\s]+/gi;
+  const GAME_ASSET_PLACEHOLDER_SRC =
+    "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
   const FIELD_DEFINITIONS = [
     { key: "gameName", label: "Game Name" },
     { key: "genre", label: "Genre" },
@@ -683,6 +686,14 @@
       .slice(-EDITOR_ASSISTANT_HISTORY_LIMIT);
   }
 
+  function ensureAssistantChatHistory() {
+    if (!Array.isArray(editorState.chatHistory)) {
+      editorState.chatHistory = [];
+    }
+
+    return editorState.chatHistory;
+  }
+
   function setEditorAssistantPending(isPending) {
     editorState.assistantChatPending = Boolean(isPending);
 
@@ -762,13 +773,15 @@
       return;
     }
 
-    if (!editorState.chatHistory.length) {
+    const history = ensureAssistantChatHistory();
+
+    if (!history.length) {
       editorAssistantHistory.innerHTML =
         '<p class="editor-assistant__empty">Ask for board changes like "Add a dodging mechanic" and I will place nodes on the canvas for you.</p>';
       return;
     }
 
-    editorAssistantHistory.innerHTML = editorState.chatHistory
+    editorAssistantHistory.innerHTML = history
       .map((message) => {
         const metaLabel = message.role === "user" ? "You" : "Editor Assistant";
         const bubbleRole = message.role === "user" ? "user" : "assistant";
@@ -796,10 +809,11 @@
       return;
     }
 
-    editorState.chatHistory.push(normalizedMessage);
+    const history = ensureAssistantChatHistory();
+    history.push(normalizedMessage);
 
-    if (editorState.chatHistory.length > EDITOR_ASSISTANT_HISTORY_LIMIT) {
-      editorState.chatHistory = editorState.chatHistory.slice(-EDITOR_ASSISTANT_HISTORY_LIMIT);
+    if (history.length > EDITOR_ASSISTANT_HISTORY_LIMIT) {
+      editorState.chatHistory = history.slice(-EDITOR_ASSISTANT_HISTORY_LIMIT);
     }
 
     renderEditorAssistantHistory();
@@ -930,7 +944,7 @@
     return true;
   }
 
-  function getLeafChildNodeIds(targetNodeId) {
+  function getLeafTextChildNodeIds(targetNodeId) {
     if (typeof targetNodeId !== "string" || !targetNodeId) {
       return [];
     }
@@ -950,7 +964,12 @@
       )
     ).filter((nodeId) => {
       const node = getNodeById(nodeId);
-      return Boolean(node && node.kind === "note" && (linkCounts.get(nodeId) || 0) <= 1);
+      return Boolean(
+        node &&
+          node.kind === "note" &&
+          node.isImageAsset !== true &&
+          (linkCounts.get(nodeId) || 0) <= 1
+      );
     });
   }
 
@@ -1000,7 +1019,7 @@
       return false;
     }
 
-    removeNodesById(getLeafChildNodeIds(targetNode.id));
+    removeNodesById(getLeafTextChildNodeIds(targetNode.id));
 
     const targetWidth = getNodeWidth(targetNode);
     const targetHeight = getNodeHeight(targetNode);
@@ -1473,40 +1492,97 @@
     return safeName || "playweaver-game";
   }
 
+  function sanitizeHtmlForGeneration(html) {
+    if (typeof html !== "string" || !html) {
+      return "";
+    }
+
+    return html.replace(BASE64_IMAGE_PATTERN, "GAME_ASSETS.placeholder");
+  }
+
+  function buildGameAssetMap() {
+    return editorState.nodes.reduce((assetMap, node) => {
+      if (
+        node?.isImageAsset === true &&
+        typeof node.targetCategory === "string" &&
+        node.targetCategory.trim() &&
+        typeof node.imageData === "string" &&
+        node.imageData.trim()
+      ) {
+        assetMap[node.targetCategory.trim()] = node.imageData.trim();
+      }
+
+      return assetMap;
+    }, {});
+  }
+
+  function buildGameAssetsBootstrapHtml() {
+    const serializedAssetMap = JSON.stringify(buildGameAssetMap());
+    const serializedPlaceholder = JSON.stringify(GAME_ASSET_PLACEHOLDER_SRC);
+
+    return `<script>
+window.GAME_ASSETS = (function () {
+  const assetMap = ${serializedAssetMap};
+  const assets = {};
+
+  Object.entries(assetMap).forEach(([key, imageData]) => {
+    if (typeof imageData !== "string" || !imageData) {
+      return;
+    }
+
+    const image = new Image();
+    image.src = imageData;
+    assets[key] = image;
+  });
+
+  const placeholder = new Image();
+  placeholder.src = ${serializedPlaceholder};
+  assets.placeholder = placeholder;
+
+  return assets;
+})();
+</script>`;
+  }
+
+  function injectGameAssetsIntoHtml(html) {
+    const sourceHtml = typeof html === "string" ? html : "";
+
+    if (!sourceHtml.trim()) {
+      return "";
+    }
+
+    const bootstrapHtml = buildGameAssetsBootstrapHtml();
+    const doctypeMatch = sourceHtml.match(/^\s*<!doctype[^>]*>/i);
+
+    if (!doctypeMatch) {
+      return `${bootstrapHtml}\n${sourceHtml}`;
+    }
+
+    const doctype = doctypeMatch[0];
+    return `${doctype}\n${bootstrapHtml}\n${sourceHtml.slice(doctype.length)}`;
+  }
+
   function setCurrentGeneratedHtml(html) {
     editorState.currentGeneratedHtml = typeof html === "string" ? html : "";
     clearPrototypeUrl();
+    const renderedHtml = injectGameAssetsIntoHtml(editorState.currentGeneratedHtml);
 
     if (gameFrame) {
       gameFrame.removeAttribute("src");
       gameFrame.srcdoc = "";
-      gameFrame.setAttribute("srcdoc", editorState.currentGeneratedHtml);
-      gameFrame.srcdoc = editorState.currentGeneratedHtml;
+      gameFrame.setAttribute("srcdoc", renderedHtml);
+      gameFrame.srcdoc = renderedHtml;
     }
 
     updateOpenInNewTabState();
   }
 
   function getCurrentGeneratedHtml() {
-    const savedHtml =
-      typeof editorState.currentGeneratedHtml === "string" ? editorState.currentGeneratedHtml : "";
+    return typeof editorState.currentGeneratedHtml === "string" ? editorState.currentGeneratedHtml : "";
+  }
 
-    if (savedHtml) {
-      return savedHtml;
-    }
-
-    if (!gameFrame) {
-      return "";
-    }
-
-    const frameAttributeHtml =
-      typeof gameFrame.getAttribute("srcdoc") === "string" ? gameFrame.getAttribute("srcdoc") : "";
-
-    if (frameAttributeHtml) {
-      return frameAttributeHtml;
-    }
-
-    return typeof gameFrame.srcdoc === "string" ? gameFrame.srcdoc : "";
+  function getRenderedGeneratedHtml() {
+    return injectGameAssetsIntoHtml(getCurrentGeneratedHtml());
   }
 
   function getSessionToken() {
@@ -1584,7 +1660,7 @@
       projectState?.gameConfig && typeof projectState.gameConfig === "object"
         ? normalizeGameConfig(projectState.gameConfig)
         : getDefaultGameConfig();
-    editorState.chatHistory = normalizedBoardState?.chatHistory || [];
+    editorState.chatHistory = normalizeAssistantHistory(normalizedBoardState?.chatHistory || []);
 
     if (normalizedBoardState) {
       editorState.nodes = normalizedBoardState.nodes;
@@ -1681,7 +1757,9 @@
   }
 
   async function downloadGeneratedPrototypeZip() {
-    if (!editorState.currentGeneratedHtml) {
+    const renderedHtml = getRenderedGeneratedHtml();
+
+    if (!renderedHtml) {
       setGenerateStatus("Generate or load a prototype before downloading.");
       return;
     }
@@ -1696,7 +1774,7 @@
       const gameName = buildGenerationPayload().gameConfig.gameName;
       const fileBaseName = sanitizeDownloadName(gameName);
       const downloadUrl = URL.createObjectURL(
-        await zip.file("index.html", editorState.currentGeneratedHtml).generateAsync({
+        await zip.file("index.html", renderedHtml).generateAsync({
           type: "blob",
         })
       );
@@ -2243,14 +2321,16 @@
   }
 
   function openPrototypeInNewTab() {
-    if (!editorState.currentGeneratedHtml) {
+    const renderedHtml = getRenderedGeneratedHtml();
+
+    if (!renderedHtml) {
       setGenerateStatus("Generate a prototype before opening a new tab.");
       return;
     }
 
     clearPrototypeUrl();
 
-    const htmlBlob = new Blob([editorState.currentGeneratedHtml], { type: "text/html" });
+    const htmlBlob = new Blob([renderedHtml], { type: "text/html" });
     const prototypeUrl = URL.createObjectURL(htmlBlob);
     editorState.currentPrototypeUrl = prototypeUrl;
     const openedWindow = window.open(prototypeUrl, "_blank", "noopener,noreferrer");
@@ -2325,6 +2405,7 @@
   async function handleGeneratePrototype() {
     const payload = buildGenerationPayload();
     const currentHtml = getCurrentGeneratedHtml();
+    const sanitizedCurrentHtml = sanitizeHtmlForGeneration(currentHtml);
     const isRegenerating = Boolean(currentHtml);
 
     persistBoardState();
@@ -2353,7 +2434,7 @@
         },
         body: JSON.stringify({
           gameConfig: payload.gameConfig,
-          currentHtml,
+          currentHtml: sanitizedCurrentHtml,
         }),
       });
 
@@ -2407,7 +2488,7 @@
     editorState.pan = storedBoard.pan;
     editorState.zoom = storedBoard.zoom || 1;
     editorState.nodeIdCounter = editorState.nodes.length;
-    editorState.chatHistory = normalizeAssistantHistory(storedBoard.chatHistory);
+    editorState.chatHistory = normalizeAssistantHistory(storedBoard.chatHistory || []);
     setCurrentGeneratedHtml(typeof storedBoard.html === "string" ? storedBoard.html : "");
 
     updateMetadata(buildGenerationPayload().gameConfig);

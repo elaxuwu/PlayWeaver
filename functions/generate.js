@@ -1,10 +1,12 @@
 import OpenAI from "openai";
 
+const BASE64_IMAGE_PATTERN = /data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=_-\s]+/gi;
+
 const SYSTEM_PROMPT =
-  'You are an expert HTML5 game developer. Based on the provided JSON config, write a complete, playable 2D web game in a single HTML file using vanilla JavaScript and the HTML5 Canvas. It must be fully self-contained with inline CSS and JS. Output ONLY the raw HTML code. Do NOT wrap it in markdown blockquotes like ```html. CRITICAL: The canvas MUST dynamically resize to perfectly fit the window. Use `canvas.width = window.innerWidth` and `canvas.height = window.innerHeight` on load and on window resize. Do NOT hardcode fixed pixel dimensions for the canvas. If the game requires player movement, you MUST implement both WASD and the Arrow Keys for controls.';
+  'You are an expert HTML5 game developer. Based on the provided JSON config, write a complete, playable 2D web game in a single HTML file using vanilla JavaScript and the HTML5 Canvas. It must be fully self-contained with inline CSS and JS. Output ONLY the raw HTML code. Do NOT wrap it in markdown blockquotes like ```html. CRITICAL: The canvas MUST dynamically resize to perfectly fit the window. Use `canvas.width = window.innerWidth` and `canvas.height = window.innerHeight` on load and on window resize. Do NOT hardcode fixed pixel dimensions for the canvas. If the game requires player movement, you MUST implement both WASD and the Arrow Keys for controls. NEVER output raw Base64 data strings. Instead, assume a global object GAME_ASSETS exists. Use GAME_ASSETS.playerCharacter or GAME_ASSETS.enemies as your image sources (e.g., ctx.drawImage(GAME_ASSETS.playerCharacter, x, y)).';
 
 const INCREMENTAL_SYSTEM_PROMPT =
-  "You are an expert HTML5 game developer. You will be provided with the EXISTING working HTML game code and an UPDATED JSON game config. Your job is to modify the existing code to integrate the new requirements while preserving as much of the original working logic and styling as possible. CRITICAL: Review the developerNotes array in the JSON config. These are granular bug fixes, stat tweaks, or overriding instructions from the user. You MUST implement these specific notes in your updated code. Output ONLY the complete, raw, updated HTML code without markdown fences.";
+  "You are an expert HTML5 game developer. You will be provided with the EXISTING working HTML game code and an UPDATED JSON game config. Your job is to modify the existing code to integrate the new requirements while preserving as much of the original working logic and styling as possible. CRITICAL: Review the developerNotes array in the JSON config. These are granular bug fixes, stat tweaks, or overriding instructions from the user. You MUST implement these specific notes in your updated code. NEVER output raw Base64 data strings. Instead, assume a global object GAME_ASSETS exists. Use GAME_ASSETS.playerCharacter or GAME_ASSETS.enemies as your image sources (e.g., ctx.drawImage(GAME_ASSETS.playerCharacter, x, y)). Output ONLY the complete, raw, updated HTML code without markdown fences.";
 
 function stripCodeFences(content) {
   return String(content || "")
@@ -14,11 +16,46 @@ function stripCodeFences(content) {
     .trim();
 }
 
+function sanitizeHtmlForPrompt(content) {
+  if (typeof content !== "string" || !content) {
+    return "";
+  }
+
+  return content.replace(BASE64_IMAGE_PATTERN, "GAME_ASSETS.placeholder");
+}
+
+function buildPromptSafeGameConfig(gameConfig) {
+  const safeConfig = gameConfig && typeof gameConfig === "object" ? { ...gameConfig } : {};
+
+  safeConfig.imageAssets = Array.isArray(gameConfig?.imageAssets)
+    ? gameConfig.imageAssets
+        .map((asset) => {
+          const targetCategory =
+            typeof asset?.targetCategory === "string" ? asset.targetCategory.trim() : "";
+          const description =
+            typeof asset?.description === "string" ? asset.description.trim() : "";
+
+          if (!targetCategory) {
+            return null;
+          }
+
+          return {
+            targetCategory,
+            description,
+            imageRef: `GAME_ASSETS.${targetCategory}`,
+          };
+        })
+        .filter(Boolean)
+    : [];
+
+  return safeConfig;
+}
+
 function buildVisionUserContent(textPrompt, imageAssets) {
   const content = [
     {
       type: "text",
-      text: `${textPrompt}\n\nThe user has uploaded reference images for specific game assets. You MUST draw these assets on the HTML5 canvas using ctx.fillRect, paths, or pixel-art techniques that closely resemble the provided images.`,
+      text: `${textPrompt}\n\nThe user has uploaded reference images for specific game assets. You MUST use them only as visual reference and NEVER output their raw Base64 data URLs. Assume the runtime provides matching Image objects on window.GAME_ASSETS. Draw these assets on the HTML5 canvas using ctx.drawImage(GAME_ASSETS.playerCharacter, x, y) style access or create shapes/pixel-art that closely resemble the provided images.`,
     },
   ];
 
@@ -61,9 +98,11 @@ export async function onRequestPost(context) {
     const hasExistingHtml = typeof currentHtml === "string" && currentHtml.trim();
     const imageAssets = Array.isArray(gameConfig?.imageAssets) ? gameConfig.imageAssets : [];
     const hasImageAssets = imageAssets.length > 0;
+    const promptSafeGameConfig = buildPromptSafeGameConfig(gameConfig);
+    const promptSafeCurrentHtml = sanitizeHtmlForPrompt(currentHtml);
     const baseUserText = hasExistingHtml
-      ? `UPDATED game config JSON:\n${JSON.stringify(gameConfig, null, 2)}\n\nEXISTING working HTML game code:\n${currentHtml}`
-      : `Game config JSON:\n${JSON.stringify(gameConfig, null, 2)}`;
+      ? `UPDATED game config JSON:\n${JSON.stringify(promptSafeGameConfig, null, 2)}\n\nEXISTING working HTML game code:\n${promptSafeCurrentHtml}`
+      : `Game config JSON:\n${JSON.stringify(promptSafeGameConfig, null, 2)}`;
     const messages = hasExistingHtml
       ? [
           { role: "system", content: INCREMENTAL_SYSTEM_PROMPT },
