@@ -84,7 +84,7 @@
               type="button"
               class="site-nav__auth-button"
             >
-              Login / Dashboard
+              Login / Signup
             </button>
             <a
               href="#idea-form"
@@ -509,183 +509,115 @@
       </div>
     </div>
 
-    <div id="auth-shell" class="auth-shell hidden" aria-hidden="true">
-      <div id="auth-shell-backdrop" class="edit-modal__backdrop"></div>
+    <div id="login-modal" class="auth-shell hidden" aria-hidden="true">
+      <div id="login-modal-backdrop" class="edit-modal__backdrop"></div>
       <div
         class="auth-shell__panel glass-card"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="auth-modal-title"
+        aria-labelledby="login-modal-title"
       >
         <div class="auth-shell__header">
           <div>
-            <p class="editor-eyebrow">PlayWeaver Account</p>
-            <h2 id="auth-modal-title" class="auth-shell__title">Welcome back</h2>
+            <p class="editor-eyebrow">PlayWeaver Login</p>
+            <h2 id="login-modal-title" class="auth-shell__title">Welcome back</h2>
           </div>
           <button
-            id="auth-close-btn"
+            id="login-modal-close"
             type="button"
             class="auth-shell__close"
-            aria-label="Close account dialog"
+            aria-label="Close login modal"
           >
             x
           </button>
         </div>
 
-        <p id="auth-status" class="auth-shell__status hidden" role="status"></p>
+        <p id="login-status" class="auth-shell__status hidden" role="status"></p>
 
-        <section id="auth-login-panel" class="auth-panel">
-          <form id="login-form" class="auth-form">
-            <label class="auth-field">
-              <span class="auth-field__label">Email</span>
-              <input id="login-email" class="auth-input" type="email" autocomplete="email" />
-            </label>
-            <label class="auth-field">
-              <span class="auth-field__label">Password</span>
-              <input
-                id="login-password"
-                class="auth-input"
-                type="password"
-                autocomplete="current-password"
-              />
-            </label>
-            <div class="auth-form__actions">
-              <button type="submit" class="editor-button editor-button--primary">Login</button>
-              <button
-                id="show-signup-btn"
-                type="button"
-                class="editor-button"
-              >
-                Create Account
-              </button>
-            </div>
-          </form>
-        </section>
-
-        <section id="auth-signup-panel" class="auth-panel hidden">
-          <form id="signup-form" class="auth-form">
-            <label class="auth-field">
-              <span class="auth-field__label">Email</span>
-              <input id="signup-email" class="auth-input" type="email" autocomplete="email" />
-            </label>
-            <label class="auth-field">
-              <span class="auth-field__label">Password</span>
-              <input
-                id="signup-password"
-                class="auth-input"
-                type="password"
-                autocomplete="new-password"
-              />
-            </label>
-            <label class="auth-field">
-              <span class="auth-field__label">Confirm Password</span>
-              <input
-                id="signup-password-confirm"
-                class="auth-input"
-                type="password"
-                autocomplete="new-password"
-              />
-            </label>
-            <div class="auth-form__actions">
-              <button type="submit" class="editor-button editor-button--primary">Sign Up</button>
-              <button
-                id="show-login-btn"
-                type="button"
-                class="editor-button"
-              >
-                Back to Login
-              </button>
-            </div>
-          </form>
-        </section>
-
-        <section id="auth-account-panel" class="auth-panel hidden">
-          <div class="auth-account__meta">
-            <p class="auth-account__label">Signed in as</p>
-            <strong id="account-email" class="auth-account__email">-</strong>
+        <form id="login-form" class="auth-form">
+          <label class="auth-field">
+            <span class="auth-field__label">Email</span>
+            <input id="login-email" class="auth-input" type="email" autocomplete="email" />
+          </label>
+          <label class="auth-field">
+            <span class="auth-field__label">Password</span>
+            <input
+              id="login-password"
+              class="auth-input"
+              type="password"
+              autocomplete="current-password"
+            />
+          </label>
+          <div class="auth-form__actions">
+            <button type="submit" class="editor-button editor-button--primary">Login</button>
+            <button id="open-signup-modal" type="button" class="editor-button">
+              Create Account
+            </button>
           </div>
-          <form id="change-password-form" class="auth-form">
-            <label class="auth-field">
-              <span class="auth-field__label">Current Password</span>
-              <input
-                id="account-old-password"
-                class="auth-input"
-                type="password"
-                autocomplete="current-password"
-              />
-            </label>
-            <label class="auth-field">
-              <span class="auth-field__label">New Password</span>
-              <input
-                id="account-new-password"
-                class="auth-input"
-                type="password"
-                autocomplete="new-password"
-              />
-            </label>
-            <label class="auth-field">
-              <span class="auth-field__label">Confirm New Password</span>
-              <input
-                id="account-new-password-confirm"
-                class="auth-input"
-                type="password"
-                autocomplete="new-password"
-              />
-            </label>
-            <div class="auth-form__actions">
-              <button type="submit" class="editor-button editor-button--primary">
-                Change Password
-              </button>
-              <button
-                id="account-back-btn"
-                type="button"
-                class="editor-button"
-              >
-                Back
-              </button>
-            </div>
-          </form>
-        </section>
+        </form>
       </div>
     </div>
 
-    <div id="dashboard-shell" class="dashboard-shell hidden" aria-hidden="true">
-      <div id="dashboard-backdrop" class="edit-modal__backdrop"></div>
+    <div id="signup-modal" class="auth-shell hidden" aria-hidden="true">
+      <div id="signup-modal-backdrop" class="edit-modal__backdrop"></div>
       <div
-        class="dashboard-shell__panel glass-card"
+        class="auth-shell__panel glass-card"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="dashboard-title"
+        aria-labelledby="signup-modal-title"
       >
-        <div class="dashboard-shell__header">
+        <div class="auth-shell__header">
           <div>
-            <p class="editor-eyebrow">PlayWeaver Dashboard</p>
-            <h2 id="dashboard-title" class="dashboard-shell__title">Your saved projects</h2>
+            <p class="editor-eyebrow">PlayWeaver Signup</p>
+            <h2 id="signup-modal-title" class="auth-shell__title">Create your account</h2>
           </div>
-          <div class="dashboard-shell__actions">
-            <button id="dashboard-account-btn" type="button" class="editor-button">
-              Account Center
-            </button>
-            <button id="dashboard-logout-btn" type="button" class="editor-button">
-              Log Out
-            </button>
-            <button
-              id="dashboard-close-btn"
-              type="button"
-              class="auth-shell__close"
-              aria-label="Close dashboard"
-            >
-              x
-            </button>
-          </div>
+          <button
+            id="signup-modal-close"
+            type="button"
+            class="auth-shell__close"
+            aria-label="Close signup modal"
+          >
+            x
+          </button>
         </div>
 
-        <p id="dashboard-status" class="dashboard-shell__status hidden" role="status"></p>
-        <div id="dashboard-grid" class="dashboard-grid"></div>
+        <p id="signup-status" class="auth-shell__status hidden" role="status"></p>
+
+        <form id="signup-form" class="auth-form">
+          <label class="auth-field">
+            <span class="auth-field__label">Email</span>
+            <input id="signup-email" class="auth-input" type="email" autocomplete="email" />
+          </label>
+          <label class="auth-field">
+            <span class="auth-field__label">Password</span>
+            <input
+              id="signup-password"
+              class="auth-input"
+              type="password"
+              autocomplete="new-password"
+            />
+          </label>
+          <label class="auth-field">
+            <span class="auth-field__label">Confirm Password</span>
+            <input
+              id="signup-password-confirm"
+              class="auth-input"
+              type="password"
+              autocomplete="new-password"
+            />
+          </label>
+          <div class="auth-form__actions">
+            <button type="submit" class="editor-button editor-button--primary">Sign Up</button>
+            <button id="open-login-modal" type="button" class="editor-button">
+              Back to Login
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 
     <script src="js/brain.js"></script>
     <script src="scripts.js"></script>
+    <script src="auth.js"></script>
   </body>
 </html>

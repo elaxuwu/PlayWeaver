@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PlayWeaver Account Center</title>
+    <meta
+      name="description"
+      content="Manage your PlayWeaver account password and return to your saved projects."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="app-page account-page">
+    <div class="app-page__shell">
+      <header class="app-page__nav glass-card">
+        <a href="index.html" class="app-page__brand">PlayWeaver</a>
+        <nav class="app-page__actions" aria-label="Account navigation">
+          <a href="dashboard.html" class="app-page__link">Dashboard</a>
+          <button id="account-logout-btn" type="button" class="editor-button">Logout</button>
+        </nav>
+      </header>
+
+      <main class="account-page__main">
+        <section class="glass-card page-card account-card">
+          <div class="page-card__header">
+            <div>
+              <p class="editor-eyebrow">Account Center</p>
+              <h1 class="page-card__title">Change your password</h1>
+              <p class="page-card__copy">
+                Update the password tied to your PlayWeaver account.
+              </p>
+            </div>
+            <a href="dashboard.html" class="editor-button">Back to Dashboard</a>
+          </div>
+
+          <p id="account-status" class="page-status hidden" role="status"></p>
+
+          <form id="change-password-form" class="auth-form">
+            <label class="auth-field">
+              <span class="auth-field__label">Current Password</span>
+              <input
+                id="account-old-password"
+                class="auth-input"
+                type="password"
+                autocomplete="current-password"
+              />
+            </label>
+            <label class="auth-field">
+              <span class="auth-field__label">New Password</span>
+              <input
+                id="account-new-password"
+                class="auth-input"
+                type="password"
+                autocomplete="new-password"
+              />
+            </label>
+            <label class="auth-field">
+              <span class="auth-field__label">Confirm New Password</span>
+              <input
+                id="account-new-password-confirm"
+                class="auth-input"
+                type="password"
+                autocomplete="new-password"
+              />
+            </label>
+            <div class="auth-form__actions">
+              <button type="submit" class="editor-button editor-button--primary">
+                Save New Password
+              </button>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <script src="account.js"></script>
+  </body>
+</html>

@@ -880,8 +880,9 @@
     if (!response.ok) {
       const errorText = await response.text();
 
-      if (response.status === 401 && window.PlayWeaverAuth?.clearSession) {
-        window.PlayWeaverAuth.clearSession();
+      if (response.status === 401) {
+        localStorage.removeItem("playweaverToken");
+        localStorage.removeItem("playweaverUser");
       }
 
       throw new Error(getPrototypeErrorMessage(errorText, response.status));

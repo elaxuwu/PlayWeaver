@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PlayWeaver Dashboard</title>
+    <meta
+      name="description"
+      content="Browse and manage your saved PlayWeaver game design projects."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="app-page dashboard-page">
+    <div class="app-page__shell">
+      <header class="app-page__nav glass-card">
+        <a href="index.html" class="app-page__brand">PlayWeaver</a>
+        <nav class="app-page__actions" aria-label="Dashboard navigation">
+          <a href="index.html" class="app-page__link">Home</a>
+          <a href="account.html" class="app-page__link">Account Center</a>
+          <button id="dashboard-logout-btn" type="button" class="editor-button">
+            Logout
+          </button>
+        </nav>
+      </header>
+
+      <main class="dashboard-page__main">
+        <section class="glass-card page-card">
+          <div class="page-card__header">
+            <div>
+              <p class="editor-eyebrow">Your Workspace</p>
+              <h1 class="page-card__title">Saved PlayWeaver Projects</h1>
+              <p class="page-card__copy">
+                Open, pin, share, or delete the projects tied to your account.
+              </p>
+            </div>
+            <a href="editor.html" class="editor-button editor-button--primary">
+              Open Editor
+            </a>
+          </div>
+
+          <p id="dashboard-status" class="page-status hidden" role="status"></p>
+          <div id="dashboard-grid" class="dashboard-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="dashboard.js"></script>
+  </body>
+</html>

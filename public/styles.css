@@ -432,6 +432,7 @@ body.editor-app {
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -1423,6 +1424,112 @@ body.editor-app {
   color: #fde68a;
 }
 
+.app-page {
+  min-height: 100vh;
+  color: #f8fbff;
+}
+
+.app-page__shell {
+  position: relative;
+  width: min(1200px, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding: 1.5rem 0 2rem;
+}
+
+.app-page__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-radius: 1.75rem;
+}
+
+.app-page__brand {
+  color: #f8fbff;
+  text-decoration: none;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.app-page__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.app-page__link {
+  color: rgba(248, 251, 255, 0.8);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.app-page__link:hover {
+  color: #f8fbff;
+}
+
+.dashboard-page__main,
+.account-page__main {
+  padding-top: 1.25rem;
+}
+
+.page-card {
+  padding: 1.3rem;
+  border-radius: 1.8rem;
+}
+
+.account-card {
+  width: min(42rem, 100%);
+  margin: 0 auto;
+}
+
+.page-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+}
+
+.page-card__title {
+  margin: 0.2rem 0 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.page-card__copy {
+  margin: 0.75rem 0 0;
+  max-width: 42rem;
+  color: rgba(248, 251, 255, 0.68);
+  line-height: 1.65;
+}
+
+.page-status {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(248, 251, 255, 0.9);
+}
+
+.page-status.is-error {
+  border-color: rgba(251, 113, 133, 0.35);
+  background: rgba(61, 13, 23, 0.72);
+  color: #ffe4e6;
+}
+
+.page-status.is-success {
+  border-color: rgba(110, 231, 183, 0.34);
+  background: rgba(7, 34, 28, 0.72);
+  color: #dcfce7;
+}
+
 .hidden {
   display: none !important;
 }
@@ -1502,5 +1609,16 @@ body.editor-app {
 
   .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .app-page__shell {
+    width: calc(100vw - 1rem);
+    padding-top: 1rem;
+  }
+
+  .app-page__nav,
+  .page-card__header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
