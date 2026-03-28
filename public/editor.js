@@ -713,6 +713,24 @@
     return editorState.nodes.find((node) => node.id === categoryKey && node.kind === "field") || null;
   }
 
+  function normalizeAssistantNodeSearchLabel(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  function findNodeByLabel(label) {
+    const normalizedLabel = normalizeAssistantNodeSearchLabel(label);
+
+    if (!normalizedLabel) {
+      return null;
+    }
+
+    return (
+      editorState.nodes.find(
+        (node) => normalizeAssistantNodeSearchLabel(node.label) === normalizedLabel
+      ) || null
+    );
+  }
+
   function addAssistantNode(label, categoryKey) {
     const targetNode = findAssistantCategoryNode(categoryKey);
 
@@ -746,6 +764,57 @@
     return true;
   }
 
+  function removeAssistantNode(label) {
+    const targetNode = findNodeByLabel(label);
+
+    if (!targetNode) {
+      return false;
+    }
+
+    editorState.nodes = editorState.nodes.filter((node) => node.id !== targetNode.id);
+    removeLinksForNode(targetNode.id);
+
+    if (editorState.selectedNodeId === targetNode.id) {
+      editorState.selectedNodeId = null;
+    }
+
+    if (editorState.draggingNodeId === targetNode.id) {
+      editorState.draggingNodeId = null;
+    }
+
+    if (editorState.editingNodeId === targetNode.id) {
+      closeEditModal();
+    }
+
+    if (editorState.contextMenu?.nodeId === targetNode.id) {
+      hideContextMenu();
+    }
+
+    if (editorState.linking?.fromNodeId === targetNode.id) {
+      editorState.linking = null;
+    }
+
+    return true;
+  }
+
+  function editAssistantNode(targetLabel, newLabel) {
+    const targetNode = findNodeByLabel(targetLabel);
+
+    if (!targetNode) {
+      return false;
+    }
+
+    targetNode.label = normalizeStoredValue(
+      newLabel,
+      targetNode.kind === "title"
+        ? "Untitled Game"
+        : targetNode.kind === "field"
+          ? "Category"
+          : "New note"
+    );
+    return true;
+  }
+
   function executeEditorAssistantActions(actions) {
     if (!Array.isArray(actions) || !actions.length) {
       return;
@@ -760,6 +829,20 @@
         typeof action.category === "string"
       ) {
         didChangeBoard = addAssistantNode(action.label, action.category) || didChangeBoard;
+        return;
+      }
+
+      if (action?.type === "REMOVE_NODE" && typeof action.label === "string") {
+        didChangeBoard = removeAssistantNode(action.label) || didChangeBoard;
+        return;
+      }
+
+      if (
+        action?.type === "EDIT_NODE" &&
+        typeof action.targetLabel === "string" &&
+        typeof action.newLabel === "string"
+      ) {
+        didChangeBoard = editAssistantNode(action.targetLabel, action.newLabel) || didChangeBoard;
       }
     });
 
@@ -823,6 +906,12 @@
       );
     } finally {
       setEditorAssistantPending(false);
+
+      if (editorAssistantInput) {
+        window.requestAnimationFrame(() => {
+          editorAssistantInput.focus();
+        });
+      }
     }
   }
 
@@ -1842,6 +1931,8 @@
 
   async function handleGeneratePrototype() {
     const payload = buildGenerationPayload();
+    const currentHtml =
+      typeof editorState.currentGeneratedHtml === "string" ? editorState.currentGeneratedHtml : "";
     const isRegenerating = Boolean(editorState.currentGeneratedHtml);
 
     persistBoardState();
@@ -1868,7 +1959,10 @@
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          gameConfig: payload.gameConfig,
+          currentHtml,
+        }),
       });
 
       if (!response.ok) {
