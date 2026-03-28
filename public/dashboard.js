@@ -61,7 +61,7 @@ function buildShareUrl(projectId) {
 }
 
 function buildDashboardApiUrl(projectId = "", token = getToken()) {
-  const url = new URL("/dashboard", window.location.origin);
+  const url = new URL("/api/dashboard", window.location.origin);
 
   if (projectId) {
     url.searchParams.set("id", projectId);
@@ -199,7 +199,7 @@ async function fetchProjects() {
 
 async function togglePinned(projectId) {
   const token = getToken();
-  const response = await fetch("/dashboard", {
+  const response = await fetch("/api/dashboard", {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
