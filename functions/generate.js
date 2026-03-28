@@ -55,16 +55,18 @@ function buildVisionUserContent(textPrompt, imageAssets) {
   const content = [
     {
       type: "text",
-      text: `${textPrompt}\n\nThe user has uploaded reference images for specific game assets. You MUST use them only as visual reference and NEVER output their raw Base64 data URLs. Assume the runtime provides matching Image objects on window.GAME_ASSETS. Draw these assets on the HTML5 canvas using ctx.drawImage(GAME_ASSETS.playerCharacter, x, y) style access or create shapes/pixel-art that closely resemble the provided images.`,
+      text: `${textPrompt}\n\nThe user has provided hosted reference image URLs for specific game assets. Use those URLs only as visual reference. Assume the runtime provides matching Image objects on window.GAME_ASSETS. Draw these assets on the HTML5 canvas using ctx.drawImage(GAME_ASSETS.playerCharacter, x, y) style access or create shapes/pixel-art that closely resemble the provided images.`,
     },
   ];
 
   imageAssets.forEach((asset) => {
-    if (typeof asset?.imageData === "string" && asset.imageData.trim()) {
+    const imageUrl = typeof asset?.imageData === "string" ? asset.imageData.trim() : "";
+
+    if (imageUrl) {
       content.push({
         type: "image_url",
         image_url: {
-          url: asset.imageData,
+          url: imageUrl,
         },
       });
     }

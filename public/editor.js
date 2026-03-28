@@ -9,6 +9,8 @@
   const CLOUD_SYNC_DEBOUNCE_MS = 1500;
   const DEBUG_SEQUENCE = ["w", "w", "a", "a", "s", "s", "d", "d"];
   const EDITOR_ASSISTANT_HISTORY_LIMIT = 16;
+  const IMGBB_UPLOAD_URL =
+    "https://api.imgbb.com/1/upload?key=596395aee2e0bc5a29e84ce142ca1e61";
   const BASE64_IMAGE_PATTERN = /data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=_-\s]+/gi;
   const GAME_ASSET_PLACEHOLDER_SRC =
     "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
@@ -143,11 +145,13 @@
     debugVisible: false,
     debugKeyHistory: [],
     chatHistory: [],
+    pendingChatImage: null,
+    pendingChatImageName: "",
     assistantChatOpen: false,
     assistantChatPending: false,
+    assistantImageUploadPending: false,
   };
   let cloudSyncTimeoutId = null;
-  let pendingChatImage = null;
 
   function defaultPan() {
     return {
@@ -696,22 +700,40 @@
 
   function setEditorAssistantPending(isPending) {
     editorState.assistantChatPending = Boolean(isPending);
+    syncEditorAssistantControls();
+  }
+
+  function setAssistantImageUploadPending(isPending) {
+    editorState.assistantImageUploadPending = Boolean(isPending);
+    syncEditorAssistantControls();
+    renderPendingChatImagePreview();
+  }
+
+  function syncEditorAssistantControls() {
+    const disableUpload =
+      editorState.assistantChatPending === true || editorState.assistantImageUploadPending === true;
+    const disableSend =
+      editorState.assistantChatPending === true || editorState.assistantImageUploadPending === true;
 
     if (editorAssistantInput) {
       editorAssistantInput.disabled = editorState.assistantChatPending;
     }
 
     if (editorAssistantUpload) {
-      editorAssistantUpload.disabled = editorState.assistantChatPending;
+      editorAssistantUpload.disabled = disableUpload;
     }
 
     if (editorAssistantSend) {
-      editorAssistantSend.disabled = editorState.assistantChatPending;
-      editorAssistantSend.textContent = editorState.assistantChatPending ? "Sending..." : "Send";
+      editorAssistantSend.disabled = disableSend;
+      editorAssistantSend.textContent = editorState.assistantChatPending
+        ? "Sending..."
+        : editorState.assistantImageUploadPending
+          ? "Uploading..."
+          : "Send";
     }
   }
 
-  function renderPendingChatImagePreview(fileName) {
+  function renderPendingChatImagePreview() {
     if (
       !editorAssistantImagePreview ||
       !editorAssistantImageThumb ||
@@ -721,32 +743,45 @@
       return;
     }
 
-    const hasPendingImage = typeof pendingChatImage === "string" && pendingChatImage.trim();
-    editorAssistantImagePreview.classList.toggle("hidden", !hasPendingImage);
+    const hasPendingImage =
+      typeof editorState.pendingChatImage === "string" && editorState.pendingChatImage.trim();
+    const isUploading = editorState.assistantImageUploadPending === true;
+    const shouldShowPreview = hasPendingImage || isUploading;
+    editorAssistantImagePreview.classList.toggle("hidden", !shouldShowPreview);
 
-    if (!hasPendingImage) {
+    if (!shouldShowPreview) {
       editorAssistantImageThumb.removeAttribute("src");
       editorAssistantImageName.textContent = "";
       editorAssistantClearImage.disabled = true;
       return;
     }
 
-    editorAssistantImageThumb.src = pendingChatImage;
-    editorAssistantImageName.textContent = fileName || "Attached reference image";
-    editorAssistantClearImage.disabled = false;
+    if (hasPendingImage) {
+      editorAssistantImageThumb.src = editorState.pendingChatImage;
+    } else {
+      editorAssistantImageThumb.removeAttribute("src");
+    }
+
+    editorAssistantImageName.textContent = isUploading
+      ? `Uploading ${editorState.pendingChatImageName || "image"}...`
+      : editorState.pendingChatImageName || "Attached reference image";
+    editorAssistantClearImage.disabled = isUploading || !hasPendingImage;
   }
 
   function clearPendingChatImage() {
-    pendingChatImage = null;
+    editorState.pendingChatImage = null;
+    editorState.pendingChatImageName = "";
+    editorState.assistantImageUploadPending = false;
 
     if (editorAssistantImageInput) {
       editorAssistantImageInput.value = "";
     }
 
-    renderPendingChatImagePreview("");
+    renderPendingChatImagePreview();
+    syncEditorAssistantControls();
   }
 
-  function handleAssistantImageSelection(event) {
+  async function handleAssistantImageSelection(event) {
     const file = event.target?.files?.[0];
 
     if (!file) {
@@ -754,18 +789,51 @@
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = function (loadEvent) {
-      const result = loadEvent?.target?.result;
-      pendingChatImage = typeof result === "string" ? result : null;
-      renderPendingChatImagePreview(file.name);
-    };
-    reader.onerror = function () {
-      pendingChatImage = null;
-      renderPendingChatImagePreview("");
-      setGenerateStatus("Unable to read the selected image file.");
-    };
-    reader.readAsDataURL(file);
+    editorState.pendingChatImage = null;
+    editorState.pendingChatImageName = file.name;
+    setAssistantImageUploadPending(true);
+    setGenerateStatus(`Uploading ${file.name} to ImgBB...`);
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const response = await fetch(IMGBB_UPLOAD_URL, {
+        method: "POST",
+        body: formData,
+      });
+      const payload = await response.json();
+      const uploadedImageUrl =
+        typeof payload?.data?.url === "string" ? payload.data.url.trim() : "";
+
+      if (!response.ok || !uploadedImageUrl) {
+        throw new Error(
+          typeof payload?.error?.message === "string" && payload.error.message.trim()
+            ? payload.error.message.trim()
+            : "ImgBB upload failed."
+        );
+      }
+
+      editorState.pendingChatImage = uploadedImageUrl;
+      setGenerateStatus("Image uploaded. You can send your message now.");
+    } catch (error) {
+      console.error("Failed to upload assistant image:", error);
+      editorState.pendingChatImage = null;
+      editorState.pendingChatImageName = "";
+      setGenerateStatus(
+        error instanceof Error && error.message
+          ? `Image upload failed: ${error.message}`
+          : "Image upload failed. Please try again."
+      );
+    } finally {
+      setAssistantImageUploadPending(false);
+
+      if (editorAssistantImageInput) {
+        editorAssistantImageInput.value = "";
+      }
+
+      renderPendingChatImagePreview();
+    }
   }
 
   function renderEditorAssistantHistory() {
@@ -1012,10 +1080,10 @@
     return true;
   }
 
-  function addAssistantImageAsset(targetCategory, description, imageData) {
+  function addAssistantImageAsset(targetCategory, description, imageUrl) {
     const targetNode = findAssistantCategoryNode(targetCategory);
 
-    if (!targetNode || typeof imageData !== "string" || !imageData.trim()) {
+    if (!targetNode || typeof imageUrl !== "string" || !imageUrl.trim()) {
       return false;
     }
 
@@ -1035,7 +1103,7 @@
       colorId: "sky",
       isNote: false,
       isImageAsset: true,
-      imageData,
+      imageData: imageUrl,
       targetCategory,
     });
 
@@ -1078,7 +1146,7 @@
     return true;
   }
 
-  function executeEditorAssistantActions(actions, attachedImageData) {
+  function executeEditorAssistantActions(actions, attachedImageUrl) {
     if (!Array.isArray(actions) || !actions.length) {
       return;
     }
@@ -1120,7 +1188,7 @@
         typeof action.description === "string"
       ) {
         didChangeBoard =
-          addAssistantImageAsset(action.targetCategory, action.description, attachedImageData) ||
+          addAssistantImageAsset(action.targetCategory, action.description, attachedImageUrl) ||
           didChangeBoard;
       }
     });
@@ -1133,6 +1201,11 @@
 
   async function handleEditorAssistantSubmit(event) {
     event.preventDefault();
+
+    if (editorState.assistantImageUploadPending) {
+      setGenerateStatus("Wait for the image upload to finish before sending your message.");
+      return;
+    }
 
     if (editorState.assistantChatPending || !editorAssistantInput) {
       return;
@@ -1155,8 +1228,8 @@
           }))
         : [],
     };
-    const attachedImageData = pendingChatImage;
-    const requestMessage = attachedImageData
+    const attachedImageUrl = editorState.pendingChatImage;
+    const requestMessage = attachedImageUrl
       ? `${message}\n\n[User attached an image reference]`
       : message;
     clearPendingChatImage();
@@ -1192,7 +1265,7 @@
       appendEditorAssistantMessage("assistant", reply);
       executeEditorAssistantActions(
         Array.isArray(payload?.actions) ? payload.actions : [],
-        attachedImageData
+        attachedImageUrl
       );
     } catch (error) {
       console.error("Editor assistant request failed:", error);
@@ -2495,7 +2568,7 @@ window.GAME_ASSETS = (function () {
     setGenerateStatus(READY_STATUS);
     setPreviewMaximized(false);
     setEditorAssistantPending(false);
-    renderPendingChatImagePreview("");
+    renderPendingChatImagePreview();
     renderEditorAssistantHistory();
     setEditorAssistantOpen(false);
     updateOpenInNewTabState();
