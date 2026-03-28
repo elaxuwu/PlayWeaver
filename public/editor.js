@@ -10,7 +10,7 @@
   const DEFAULT_GENERATION_MODEL = "openai_gpt_5_4_nano";
   const SUPPORTED_GENERATION_MODELS = new Set([
     DEFAULT_GENERATION_MODEL,
-    "qwen_qwen2_5_coder_32b_instruct",
+    "meta_llama_llama_3_3_70b_instruct",
   ]);
   const FIELD_DEFINITIONS = [
     { key: "gameName", label: "Game Name" },
@@ -209,6 +209,33 @@
 
   function getNodeById(nodeId) {
     return editorState.nodes.find((node) => node.id === nodeId) || null;
+  }
+
+  function isRootNode(node) {
+    return Boolean(node && (node.kind === "title" || ROOT_NODE_IDS.includes(node.id)));
+  }
+
+  function canStartManualLink(nodeId) {
+    const node = getNodeById(nodeId);
+    return Boolean(node && !isRootNode(node) && (node.kind === "field" || node.kind === "note"));
+  }
+
+  function canCreateManualLink(fromNodeId, toNodeId) {
+    const fromNode = getNodeById(fromNodeId);
+    const toNode = getNodeById(toNodeId);
+
+    if (!fromNode || !toNode || fromNode.id === toNode.id) {
+      return false;
+    }
+
+    if (isRootNode(fromNode) || isRootNode(toNode)) {
+      return false;
+    }
+
+    return (
+      (fromNode.kind === "field" && toNode.kind === "note") ||
+      (fromNode.kind === "note" && toNode.kind === "field")
+    );
   }
 
   function getNodeIndex(nodeId) {
@@ -926,8 +953,12 @@
         return "";
       }
 
+      const canLinkFromNode = canStartManualLink(node.id);
+
       return `
-        ${renderContextButton("start-link", "->", "Start Link")}
+        ${renderContextButton("start-link", "->", "Start Link", {
+          disabled: !canLinkFromNode,
+        })}
         <div class="context-menu__section">
           <p class="context-menu__section-label">Change Color</p>
           <div class="context-menu__swatches">
@@ -1103,7 +1134,7 @@
   }
 
   function startLinkMode(fromNodeId) {
-    if (!getNodeById(fromNodeId)) {
+    if (!canStartManualLink(fromNodeId)) {
       return;
     }
 
@@ -1133,6 +1164,11 @@
     const fromNodeId = editorState.linking.fromNodeId;
 
     if (fromNodeId === targetNodeId) {
+      cancelLinkMode();
+      return;
+    }
+
+    if (!canCreateManualLink(fromNodeId, targetNodeId)) {
       cancelLinkMode();
       return;
     }
@@ -1421,13 +1457,17 @@
     const isEditableLabelTarget = Boolean(
       event.target.closest('.board-node__label[data-editable="true"]')
     );
+    const activeEditableLabel = document.activeElement;
+    const isEditingThisNode =
+      activeEditableLabel?.isContentEditable &&
+      activeEditableLabel.classList?.contains("board-node__label") &&
+      activeEditableLabel.closest(".board-node") === nodeElement;
     const wasSelected = editorState.selectedNodeId === nodeId;
 
-    if (isEditableLabelTarget) {
+    if (isEditableLabelTarget || isEditingThisNode) {
       if (!wasSelected) {
         editorState.selectedNodeId = nodeId;
         scheduleRender();
-        event.preventDefault();
       }
       return;
     }

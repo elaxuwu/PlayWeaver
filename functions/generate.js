@@ -17,11 +17,11 @@ const GENERATION_MODEL_ROUTES = {
       reasoning_effort: "high",
     },
   },
-  qwen_qwen2_5_coder_32b_instruct: {
+  meta_llama_llama_3_3_70b_instruct: {
     apiKeyEnv: "FEATHERLESS_API_KEY",
     apiKeyError: "Missing FEATHERLESS_API_KEY environment variable",
     baseURL: "https://api.featherless.ai/v1",
-    model: "Qwen/Qwen2.5-Coder-32B-Instruct",
+    model: "meta-llama/Llama-3.3-70B-Instruct",
   },
 };
 
