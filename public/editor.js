@@ -139,7 +139,7 @@
     editingNodeId: null,
     debugVisible: false,
     debugKeyHistory: [],
-    assistantChatHistory: [],
+    chatHistory: [],
     assistantChatOpen: false,
     assistantChatPending: false,
   };
@@ -501,6 +501,8 @@
       pan: defaultPan(),
       zoom: 1,
       signature: createConfigSignature(normalizedConfig),
+      html: "",
+      chatHistory: [],
     };
   }
 
@@ -588,6 +590,11 @@
     const panY = Number(rawState.pan?.y);
     const zoom = Number(rawState.zoom);
     const fallbackPan = defaultPan();
+    const chatHistorySource = Array.isArray(rawState.chatHistory)
+      ? rawState.chatHistory
+      : Array.isArray(rawState.assistantChatHistory)
+        ? rawState.assistantChatHistory
+        : [];
 
     return {
       nodes,
@@ -598,6 +605,8 @@
       },
       zoom: Number.isFinite(zoom) ? clamp(zoom, MIN_ZOOM, MAX_ZOOM) : 1,
       signature: typeof rawState.signature === "string" ? rawState.signature : "",
+      html: typeof rawState.html === "string" ? rawState.html : "",
+      chatHistory: normalizeAssistantHistory(chatHistorySource),
     };
   }
 
@@ -661,6 +670,17 @@
       role,
       content,
     };
+  }
+
+  function normalizeAssistantHistory(messages) {
+    if (!Array.isArray(messages)) {
+      return [];
+    }
+
+    return messages
+      .map(normalizeAssistantHistoryMessage)
+      .filter(Boolean)
+      .slice(-EDITOR_ASSISTANT_HISTORY_LIMIT);
   }
 
   function setEditorAssistantPending(isPending) {
@@ -742,13 +762,13 @@
       return;
     }
 
-    if (!editorState.assistantChatHistory.length) {
+    if (!editorState.chatHistory.length) {
       editorAssistantHistory.innerHTML =
         '<p class="editor-assistant__empty">Ask for board changes like "Add a dodging mechanic" and I will place nodes on the canvas for you.</p>';
       return;
     }
 
-    editorAssistantHistory.innerHTML = editorState.assistantChatHistory
+    editorAssistantHistory.innerHTML = editorState.chatHistory
       .map((message) => {
         const metaLabel = message.role === "user" ? "You" : "Editor Assistant";
         const bubbleRole = message.role === "user" ? "user" : "assistant";
@@ -776,15 +796,14 @@
       return;
     }
 
-    editorState.assistantChatHistory.push(normalizedMessage);
+    editorState.chatHistory.push(normalizedMessage);
 
-    if (editorState.assistantChatHistory.length > EDITOR_ASSISTANT_HISTORY_LIMIT) {
-      editorState.assistantChatHistory = editorState.assistantChatHistory.slice(
-        -EDITOR_ASSISTANT_HISTORY_LIMIT
-      );
+    if (editorState.chatHistory.length > EDITOR_ASSISTANT_HISTORY_LIMIT) {
+      editorState.chatHistory = editorState.chatHistory.slice(-EDITOR_ASSISTANT_HISTORY_LIMIT);
     }
 
     renderEditorAssistantHistory();
+    persistBoardState();
   }
 
   function setEditorAssistantOpen(isOpen) {
@@ -818,7 +837,7 @@
   }
 
   function buildEditorAssistantRequestHistory() {
-    return editorState.assistantChatHistory
+    return editorState.chatHistory
       .map(normalizeAssistantHistoryMessage)
       .filter(Boolean)
       .slice(-EDITOR_ASSISTANT_HISTORY_LIMIT);
@@ -911,12 +930,77 @@
     return true;
   }
 
+  function getLeafChildNodeIds(targetNodeId) {
+    if (typeof targetNodeId !== "string" || !targetNodeId) {
+      return [];
+    }
+
+    const linkCounts = new Map();
+
+    editorState.links.forEach((link) => {
+      linkCounts.set(link.from, (linkCounts.get(link.from) || 0) + 1);
+      linkCounts.set(link.to, (linkCounts.get(link.to) || 0) + 1);
+    });
+
+    return Array.from(
+      new Set(
+        editorState.links
+          .filter((link) => link.from === targetNodeId || link.to === targetNodeId)
+          .map((link) => (link.from === targetNodeId ? link.to : link.from))
+      )
+    ).filter((nodeId) => {
+      const node = getNodeById(nodeId);
+      return Boolean(node && node.kind === "note" && (linkCounts.get(nodeId) || 0) <= 1);
+    });
+  }
+
+  function removeNodesById(nodeIds) {
+    const removableNodeIds = new Set(
+      Array.isArray(nodeIds)
+        ? nodeIds.filter((nodeId) => typeof nodeId === "string" && nodeId)
+        : []
+    );
+
+    if (!removableNodeIds.size) {
+      return false;
+    }
+
+    editorState.nodes = editorState.nodes.filter((node) => !removableNodeIds.has(node.id));
+    editorState.links = editorState.links.filter(
+      (link) => !removableNodeIds.has(link.from) && !removableNodeIds.has(link.to)
+    );
+
+    if (editorState.selectedNodeId && removableNodeIds.has(editorState.selectedNodeId)) {
+      editorState.selectedNodeId = null;
+    }
+
+    if (editorState.draggingNodeId && removableNodeIds.has(editorState.draggingNodeId)) {
+      editorState.draggingNodeId = null;
+    }
+
+    if (editorState.editingNodeId && removableNodeIds.has(editorState.editingNodeId)) {
+      closeEditModal();
+    }
+
+    if (editorState.contextMenu?.nodeId && removableNodeIds.has(editorState.contextMenu.nodeId)) {
+      hideContextMenu();
+    }
+
+    if (editorState.linking?.fromNodeId && removableNodeIds.has(editorState.linking.fromNodeId)) {
+      editorState.linking = null;
+    }
+
+    return true;
+  }
+
   function addAssistantImageAsset(targetCategory, description, imageData) {
     const targetNode = findAssistantCategoryNode(targetCategory);
 
     if (!targetNode || typeof imageData !== "string" || !imageData.trim()) {
       return false;
     }
+
+    removeNodesById(getLeafChildNodeIds(targetNode.id));
 
     const targetWidth = getNodeWidth(targetNode);
     const targetHeight = getNodeHeight(targetNode);
@@ -930,6 +1014,7 @@
       x: targetCenterX + Math.cos(angle) * distance - assetWidth / 2,
       y: targetCenterY + Math.sin(angle) * distance - assetHeight / 2,
       colorId: "sky",
+      isNote: false,
       isImageAsset: true,
       imageData,
       targetCategory,
@@ -953,30 +1038,7 @@
       return false;
     }
 
-    editorState.nodes = editorState.nodes.filter((node) => node.id !== targetNode.id);
-    removeLinksForNode(targetNode.id);
-
-    if (editorState.selectedNodeId === targetNode.id) {
-      editorState.selectedNodeId = null;
-    }
-
-    if (editorState.draggingNodeId === targetNode.id) {
-      editorState.draggingNodeId = null;
-    }
-
-    if (editorState.editingNodeId === targetNode.id) {
-      closeEditModal();
-    }
-
-    if (editorState.contextMenu?.nodeId === targetNode.id) {
-      hideContextMenu();
-    }
-
-    if (editorState.linking?.fromNodeId === targetNode.id) {
-      editorState.linking = null;
-    }
-
-    return true;
+    return removeNodesById([targetNode.id]);
   }
 
   function editAssistantNode(targetLabel, newLabel) {
@@ -1306,6 +1368,8 @@
       pan: editorState.pan,
       zoom: editorState.zoom,
       signature: createConfigSignature(gameConfig),
+      html: getCurrentGeneratedHtml(),
+      chatHistory: normalizeAssistantHistory(editorState.chatHistory),
     };
   }
 
@@ -1414,10 +1478,35 @@
     clearPrototypeUrl();
 
     if (gameFrame) {
+      gameFrame.removeAttribute("src");
+      gameFrame.srcdoc = "";
+      gameFrame.setAttribute("srcdoc", editorState.currentGeneratedHtml);
       gameFrame.srcdoc = editorState.currentGeneratedHtml;
     }
 
     updateOpenInNewTabState();
+  }
+
+  function getCurrentGeneratedHtml() {
+    const savedHtml =
+      typeof editorState.currentGeneratedHtml === "string" ? editorState.currentGeneratedHtml : "";
+
+    if (savedHtml) {
+      return savedHtml;
+    }
+
+    if (!gameFrame) {
+      return "";
+    }
+
+    const frameAttributeHtml =
+      typeof gameFrame.getAttribute("srcdoc") === "string" ? gameFrame.getAttribute("srcdoc") : "";
+
+    if (frameAttributeHtml) {
+      return frameAttributeHtml;
+    }
+
+    return typeof gameFrame.srcdoc === "string" ? gameFrame.srcdoc : "";
   }
 
   function getSessionToken() {
@@ -1432,7 +1521,7 @@
       },
       body: JSON.stringify({
         id: stateId,
-        html: typeof editorState.currentGeneratedHtml === "string" ? editorState.currentGeneratedHtml : "",
+        html: getCurrentGeneratedHtml(),
         editorState: buildPersistedBoardState(payload.gameConfig),
         gameConfig: payload.gameConfig,
         token: getSessionToken(),
@@ -1495,6 +1584,7 @@
       projectState?.gameConfig && typeof projectState.gameConfig === "object"
         ? normalizeGameConfig(projectState.gameConfig)
         : getDefaultGameConfig();
+    editorState.chatHistory = normalizedBoardState?.chatHistory || [];
 
     if (normalizedBoardState) {
       editorState.nodes = normalizedBoardState.nodes;
@@ -1510,9 +1600,12 @@
       editorState.editingNodeId = null;
     }
 
-    setCurrentGeneratedHtml(typeof projectState?.html === "string" ? projectState.html : "");
+    setCurrentGeneratedHtml(
+      typeof projectState?.html === "string" ? projectState.html : normalizedBoardState?.html || ""
+    );
     writeProjectStateToLocalStorage(buildPersistedBoardState(normalizedGameConfig), normalizedGameConfig);
     updateMetadata(normalizedGameConfig);
+    renderEditorAssistantHistory();
     scheduleRender();
   }
 
@@ -2195,9 +2288,13 @@
     return responseBody;
   }
 
+  function isAutoRemovableStickyNote(node) {
+    return Boolean(node && node.isNote === true && node.isImageAsset !== true);
+  }
+
   function clearDeveloperNotesAfterGeneration() {
     const noteIds = new Set(
-      editorState.nodes.filter((node) => node.isNote === true).map((node) => node.id)
+      editorState.nodes.filter((node) => isAutoRemovableStickyNote(node)).map((node) => node.id)
     );
 
     if (!noteIds.size) {
@@ -2227,9 +2324,8 @@
 
   async function handleGeneratePrototype() {
     const payload = buildGenerationPayload();
-    const currentHtml =
-      typeof editorState.currentGeneratedHtml === "string" ? editorState.currentGeneratedHtml : "";
-    const isRegenerating = Boolean(editorState.currentGeneratedHtml);
+    const currentHtml = getCurrentGeneratedHtml();
+    const isRegenerating = Boolean(currentHtml);
 
     persistBoardState();
     updateMetadata(payload.gameConfig);
@@ -2268,6 +2364,7 @@
 
       const generatedHtml = await response.text();
       setCurrentGeneratedHtml(generatedHtml);
+      persistBoardState();
       clearDeveloperNotesAfterGeneration();
 
       let saveError = null;
@@ -2310,6 +2407,8 @@
     editorState.pan = storedBoard.pan;
     editorState.zoom = storedBoard.zoom || 1;
     editorState.nodeIdCounter = editorState.nodes.length;
+    editorState.chatHistory = normalizeAssistantHistory(storedBoard.chatHistory);
+    setCurrentGeneratedHtml(typeof storedBoard.html === "string" ? storedBoard.html : "");
 
     updateMetadata(buildGenerationPayload().gameConfig);
     setGenerateStatus(READY_STATUS);
