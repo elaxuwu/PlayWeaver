@@ -8,6 +8,7 @@
   const MAX_ZOOM = 2.4;
   const CLOUD_SYNC_DEBOUNCE_MS = 1500;
   const DEBUG_SEQUENCE = ["w", "w", "a", "a", "s", "s", "d", "d"];
+  const EDITOR_ASSISTANT_HISTORY_LIMIT = 16;
   const FIELD_DEFINITIONS = [
     { key: "gameName", label: "Game Name" },
     { key: "genre", label: "Genre" },
@@ -103,6 +104,12 @@
   const editNodeCancelBtn = document.getElementById("edit-node-cancel-btn");
   const debugPanel = document.getElementById("debug-panel");
   const debugPayload = document.getElementById("debug-payload");
+  const editorAssistantPanel = document.getElementById("editor-assistant-panel");
+  const editorAssistantHistory = document.getElementById("editor-assistant-history");
+  const editorAssistantForm = document.getElementById("editor-assistant-form");
+  const editorAssistantInput = document.getElementById("editor-assistant-input");
+  const editorAssistantSend = document.getElementById("editor-assistant-send");
+  const editorAssistantFab = document.getElementById("editor-assistant-fab");
 
   if (!boardCanvas || !boardStage || !boardNodes || !boardLinks || !canvasContextMenu) {
     return;
@@ -126,6 +133,9 @@
     editingNodeId: null,
     debugVisible: false,
     debugKeyHistory: [],
+    assistantChatHistory: [],
+    assistantChatOpen: false,
+    assistantChatPending: false,
   };
   let cloudSyncTimeoutId = null;
 
@@ -175,6 +185,10 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  function formatAssistantMessage(value) {
+    return escapeHtml(value).replace(/\n/g, "<br>");
   }
 
   function clamp(value, min, max) {
@@ -323,6 +337,29 @@
 
   function createLinkId(fromNodeId, toNodeId) {
     return `link_${fromNodeId}_${toNodeId}_${Date.now()}_${editorState.links.length + 1}`;
+  }
+
+  function createNode(label, type, options = {}) {
+    const normalizedType =
+      type === "title" || type === "field" || type === "note" || type === "Node"
+        ? type
+        : "note";
+    const kind = normalizedType === "Node" ? "note" : normalizedType;
+    const fallbackLabel =
+      kind === "title" ? "Untitled Game" : kind === "field" ? "Category" : "New note";
+
+    return {
+      id: createNodeId(kind === "title" ? "title" : kind === "field" ? "field" : "note"),
+      kind,
+      label: normalizeStoredValue(label, fallbackLabel),
+      x: Number.isFinite(options.x) ? options.x : 0,
+      y: Number.isFinite(options.y) ? options.y : 0,
+      locked: Boolean(options.locked),
+      colorId:
+        typeof options.colorId === "string" && options.colorId
+          ? options.colorId
+          : DEFAULT_COLORS[kind],
+    };
   }
 
   function createConfigSignature(config) {
@@ -551,6 +588,241 @@
   function setGenerateStatus(message) {
     if (generateStatus) {
       generateStatus.textContent = message;
+    }
+  }
+
+  function normalizeAssistantHistoryMessage(message) {
+    const role = message?.role === "assistant" ? "assistant" : message?.role === "user" ? "user" : "";
+    const content = typeof message?.content === "string" ? message.content.trim() : "";
+
+    if (!role || !content) {
+      return null;
+    }
+
+    return {
+      role,
+      content,
+    };
+  }
+
+  function setEditorAssistantPending(isPending) {
+    editorState.assistantChatPending = Boolean(isPending);
+
+    if (editorAssistantInput) {
+      editorAssistantInput.disabled = editorState.assistantChatPending;
+    }
+
+    if (editorAssistantSend) {
+      editorAssistantSend.disabled = editorState.assistantChatPending;
+      editorAssistantSend.textContent = editorState.assistantChatPending ? "Sending..." : "Send";
+    }
+  }
+
+  function renderEditorAssistantHistory() {
+    if (!editorAssistantHistory) {
+      return;
+    }
+
+    if (!editorState.assistantChatHistory.length) {
+      editorAssistantHistory.innerHTML =
+        '<p class="editor-assistant__empty">Ask for board changes like "Add a dodging mechanic" and I will place nodes on the canvas for you.</p>';
+      return;
+    }
+
+    editorAssistantHistory.innerHTML = editorState.assistantChatHistory
+      .map((message) => {
+        const metaLabel = message.role === "user" ? "You" : "Editor Assistant";
+        const bubbleRole = message.role === "user" ? "user" : "assistant";
+
+        return `
+          <div class="chat-message-row ${bubbleRole}">
+            <div class="chat-message-wrap">
+              <p class="chat-meta">${metaLabel}</p>
+              <div class="chat-bubble whitespace-pre-wrap ${bubbleRole}">${formatAssistantMessage(
+                message.content
+              )}</div>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    editorAssistantHistory.scrollTop = editorAssistantHistory.scrollHeight;
+  }
+
+  function appendEditorAssistantMessage(role, content) {
+    const normalizedMessage = normalizeAssistantHistoryMessage({ role, content });
+
+    if (!normalizedMessage) {
+      return;
+    }
+
+    editorState.assistantChatHistory.push(normalizedMessage);
+
+    if (editorState.assistantChatHistory.length > EDITOR_ASSISTANT_HISTORY_LIMIT) {
+      editorState.assistantChatHistory = editorState.assistantChatHistory.slice(
+        -EDITOR_ASSISTANT_HISTORY_LIMIT
+      );
+    }
+
+    renderEditorAssistantHistory();
+  }
+
+  function setEditorAssistantOpen(isOpen) {
+    editorState.assistantChatOpen = Boolean(isOpen);
+
+    if (editorAssistantPanel) {
+      editorAssistantPanel.classList.toggle("hidden", !editorState.assistantChatOpen);
+    }
+
+    if (editorAssistantFab) {
+      editorAssistantFab.setAttribute("aria-expanded", String(editorState.assistantChatOpen));
+      editorAssistantFab.setAttribute(
+        "aria-label",
+        editorState.assistantChatOpen ? "Close editor assistant" : "Open editor assistant"
+      );
+    }
+
+    if (editorState.assistantChatOpen) {
+      renderEditorAssistantHistory();
+
+      if (editorAssistantInput && !editorState.assistantChatPending) {
+        window.requestAnimationFrame(() => {
+          editorAssistantInput.focus();
+        });
+      }
+    }
+  }
+
+  function toggleEditorAssistant() {
+    setEditorAssistantOpen(!editorState.assistantChatOpen);
+  }
+
+  function buildEditorAssistantRequestHistory() {
+    return editorState.assistantChatHistory
+      .map(normalizeAssistantHistoryMessage)
+      .filter(Boolean)
+      .slice(-EDITOR_ASSISTANT_HISTORY_LIMIT);
+  }
+
+  function findAssistantCategoryNode(categoryKey) {
+    if (categoryKey === "gameName") {
+      return getNodeById("title");
+    }
+
+    return editorState.nodes.find((node) => node.id === categoryKey && node.kind === "field") || null;
+  }
+
+  function addAssistantNode(label, categoryKey) {
+    const targetNode = findAssistantCategoryNode(categoryKey);
+
+    if (!targetNode) {
+      return false;
+    }
+
+    const targetWidth = getNodeWidth(targetNode);
+    const targetHeight = getNodeHeight(targetNode);
+    const noteWidth = getNodeWidth({ kind: "note" });
+    const noteHeight = getNodeHeight({ kind: "note" });
+    const angle = Math.random() * Math.PI * 2;
+    const distance =
+      categoryKey === "gameName" ? 168 + Math.random() * 40 : 122 + Math.random() * 34;
+    const targetCenterX = targetNode.x + targetWidth / 2;
+    const targetCenterY = targetNode.y + targetHeight / 2;
+    const nextNode = createNode(label, "Node", {
+      x: targetCenterX + Math.cos(angle) * distance - noteWidth / 2,
+      y: targetCenterY + Math.sin(angle) * distance - noteHeight / 2,
+      colorId: "gold",
+    });
+
+    editorState.nodes.push(nextNode);
+    editorState.links.push({
+      id: createLinkId(targetNode.id, nextNode.id),
+      from: targetNode.id,
+      to: nextNode.id,
+    });
+    editorState.selectedNodeId = nextNode.id;
+    bringNodeToFront(nextNode.id);
+    return true;
+  }
+
+  function executeEditorAssistantActions(actions) {
+    if (!Array.isArray(actions) || !actions.length) {
+      return;
+    }
+
+    let didChangeBoard = false;
+
+    actions.forEach((action) => {
+      if (
+        action?.type === "ADD_NODE" &&
+        typeof action.label === "string" &&
+        typeof action.category === "string"
+      ) {
+        didChangeBoard = addAssistantNode(action.label, action.category) || didChangeBoard;
+      }
+    });
+
+    if (didChangeBoard) {
+      persistBoardState();
+      scheduleRender();
+    }
+  }
+
+  async function handleEditorAssistantSubmit(event) {
+    event.preventDefault();
+
+    if (editorState.assistantChatPending || !editorAssistantInput) {
+      return;
+    }
+
+    const message = editorAssistantInput.value.trim();
+
+    if (!message) {
+      return;
+    }
+
+    const messageHistory = buildEditorAssistantRequestHistory();
+    editorAssistantInput.value = "";
+    setEditorAssistantOpen(true);
+    appendEditorAssistantMessage("user", message);
+    setEditorAssistantPending(true);
+
+    try {
+      const response = await fetch("/editor-chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message,
+          messageHistory,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(getPrototypeErrorMessage(errorText, response.status));
+      }
+
+      const payload = await response.json();
+      const reply =
+        typeof payload?.reply === "string" && payload.reply.trim()
+          ? payload.reply.trim()
+          : "I am ready to help shape the board.";
+
+      appendEditorAssistantMessage("assistant", reply);
+      executeEditorAssistantActions(Array.isArray(payload?.actions) ? payload.actions : []);
+    } catch (error) {
+      console.error("Editor assistant request failed:", error);
+      appendEditorAssistantMessage(
+        "assistant",
+        error instanceof Error && error.message
+          ? `I hit a problem while updating the board: ${error.message}`
+          : "I hit a problem while updating the board. Please try again."
+      );
+    } finally {
+      setEditorAssistantPending(false);
     }
   }
 
@@ -1355,19 +1627,14 @@
   }
 
   function addNodeAtWorld(worldX, worldY) {
-    const nextNodeId = createNodeId("note");
-    const nextNode = {
-      id: nextNodeId,
-      kind: "note",
-      label: "New note",
+    const nextNode = createNode("New note", "Node", {
       x: worldX,
       y: worldY,
-      locked: false,
       colorId: "gold",
-    };
+    });
 
     editorState.nodes.push(nextNode);
-    editorState.selectedNodeId = nextNodeId;
+    editorState.selectedNodeId = nextNode.id;
     persistBoardState();
     scheduleRender();
   }
@@ -1656,6 +1923,9 @@
     updateMetadata(buildGenerationPayload().gameConfig);
     setGenerateStatus(READY_STATUS);
     setPreviewMaximized(false);
+    setEditorAssistantPending(false);
+    renderEditorAssistantHistory();
+    setEditorAssistantOpen(false);
     updateOpenInNewTabState();
     scheduleRender();
   }
@@ -1966,6 +2236,14 @@
         closeEditModal();
       }
     });
+  }
+
+  if (editorAssistantFab) {
+    editorAssistantFab.addEventListener("click", toggleEditorAssistant);
+  }
+
+  if (editorAssistantForm) {
+    editorAssistantForm.addEventListener("submit", handleEditorAssistantSubmit);
   }
 
   document.addEventListener("pointerdown", handleDocumentPointerDown);

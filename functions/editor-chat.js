@@ -1,0 +1,164 @@
+import OpenAI from "openai";
+
+const VALID_CATEGORIES = [
+  "gameName",
+  "genre",
+  "coreMechanic",
+  "artStyle",
+  "setting",
+  "playerCharacter",
+  "enemies",
+  "winCondition",
+];
+
+const SYSTEM_PROMPT = `You are an expert game design assistant embedded inside the PlayWeaver node-based editor.
+You must ONLY reply with valid JSON matching this exact schema and nothing else:
+{"reply":"Friendly message to the user","actions":[{"type":"ADD_NODE","label":"Dodging","category":"coreMechanic"}]}
+
+Rules:
+- "reply" must always be a friendly plain-text string.
+- "actions" must always be an array.
+- The only supported action type is "ADD_NODE".
+- Valid categories for "ADD_NODE" are exactly: gameName, genre, coreMechanic, artStyle, setting, playerCharacter, enemies, winCondition.
+- Use "ADD_NODE" only when the user clearly wants the editor canvas changed.
+- If the user is only chatting or asking for advice without a canvas change, return an empty "actions" array.
+- Keep "label" short and suitable for a node label.
+- Never return markdown, code fences, or any text outside the JSON object.`;
+
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+function stripJsonCodeFences(content) {
+  return String(content || "")
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
+function normalizeMessageHistory(messageHistory) {
+  if (!Array.isArray(messageHistory)) {
+    return [];
+  }
+
+  return messageHistory
+    .map((message) => {
+      const role = message?.role === "assistant" ? "assistant" : message?.role === "user" ? "user" : "";
+      const content = typeof message?.content === "string" ? message.content.trim() : "";
+
+      if (!role || !content) {
+        return null;
+      }
+
+      return {
+        role,
+        content,
+      };
+    })
+    .filter(Boolean);
+}
+
+function normalizeCategory(category) {
+  const normalizedCategory = typeof category === "string" ? category.trim() : "";
+  return VALID_CATEGORIES.includes(normalizedCategory) ? normalizedCategory : "";
+}
+
+function normalizeAction(action) {
+  if (!action || typeof action !== "object") {
+    return null;
+  }
+
+  if (action.type !== "ADD_NODE") {
+    return null;
+  }
+
+  const label = typeof action.label === "string" ? action.label.trim() : "";
+  const category = normalizeCategory(action.category);
+
+  if (!label || !category) {
+    return null;
+  }
+
+  return {
+    type: "ADD_NODE",
+    label,
+    category,
+  };
+}
+
+function normalizeAssistantPayload(rawContent) {
+  let parsedPayload = null;
+
+  try {
+    parsedPayload = JSON.parse(stripJsonCodeFences(rawContent));
+  } catch (error) {
+    throw new Error(`Invalid JSON returned from editor chat model: ${error.message}`);
+  }
+
+  const reply =
+    typeof parsedPayload?.reply === "string" && parsedPayload.reply.trim()
+      ? parsedPayload.reply.trim()
+      : "I updated the board suggestion for you.";
+
+  const actions = Array.isArray(parsedPayload?.actions)
+    ? parsedPayload.actions.map(normalizeAction).filter(Boolean)
+    : [];
+
+  return {
+    reply,
+    actions,
+  };
+}
+
+export async function onRequestPost(context) {
+  try {
+    const { message, messageHistory } = await context.request.json();
+    const normalizedMessage = typeof message === "string" ? message.trim() : "";
+
+    if (!normalizedMessage) {
+      return jsonResponse({ error: "message is required" }, 400);
+    }
+
+    const client = new OpenAI({
+      apiKey: "proxy-handles-key",
+      baseURL: "https://openaiproxy.ngocthienbaod.workers.dev/v1",
+    });
+
+    const completion = await client.chat.completions.create({
+      model: "deepseek-ai/DeepSeek-V3-0324",
+      temperature: 0.2,
+      messages: [
+        {
+          role: "system",
+          content: SYSTEM_PROMPT,
+        },
+        ...normalizeMessageHistory(messageHistory),
+        {
+          role: "user",
+          content: normalizedMessage,
+        },
+      ],
+    });
+
+    const assistantReply = completion.choices?.[0]?.message?.content?.trim() || "";
+
+    if (!assistantReply) {
+      throw new Error("Editor chat model returned an empty response.");
+    }
+
+    return jsonResponse(normalizeAssistantPayload(assistantReply));
+  } catch (error) {
+    return jsonResponse(
+      {
+        error: error instanceof Error ? error.message : "Unable to process the editor assistant request.",
+      },
+      500
+    );
+  }
+}

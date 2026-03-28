@@ -150,6 +150,64 @@
         <p class="debug-panel__title">Linked Payload</p>
         <pre id="debug-payload" class="debug-panel__payload">{}</pre>
       </aside>
+
+      <section
+        id="editor-assistant-panel"
+        class="editor-assistant glass-card hidden"
+        aria-label="Editor assistant"
+      >
+        <div class="editor-assistant__header">
+          <div>
+            <p class="editor-eyebrow">Editor Assistant</p>
+            <h2 class="editor-assistant__title">AI Canvas Helper</h2>
+          </div>
+        </div>
+
+        <div id="editor-assistant-history" class="editor-assistant__history" aria-live="polite"></div>
+
+        <form id="editor-assistant-form" class="editor-assistant__form">
+          <input
+            id="editor-assistant-input"
+            class="editor-assistant__input"
+            type="text"
+            autocomplete="off"
+            placeholder='Ask something like "Add a dodging mechanic"'
+          />
+          <button
+            id="editor-assistant-send"
+            type="submit"
+            class="editor-button editor-button--primary"
+          >
+            Send
+          </button>
+        </form>
+      </section>
+
+      <button
+        id="editor-assistant-fab"
+        class="editor-assistant-fab"
+        type="button"
+        aria-label="Open editor assistant"
+        aria-expanded="false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M5 6.5h14a2.5 2.5 0 0 1 2.5 2.5v6A2.5 2.5 0 0 1 19 17.5H11l-4.75 3v-3H5A2.5 2.5 0 0 1 2.5 15V9A2.5 2.5 0 0 1 5 6.5Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.7"
+          />
+          <path
+            d="M8 11.5h8M8 14.5h5"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-width="1.7"
+          />
+        </svg>
+      </button>
     </main>
 
     <script src="scripts.js"></script>

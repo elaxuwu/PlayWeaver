@@ -1165,6 +1165,154 @@ body.editor-app {
   word-break: break-word;
 }
 
+.editor-assistant {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 6.45rem;
+  z-index: 62;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  width: min(24rem, calc(100vw - 2.5rem));
+  height: min(28rem, calc(100vh - 8rem));
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 1.4rem;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 12, 24, 0.94),
+    rgba(7, 10, 20, 0.9)
+  );
+  box-shadow:
+    0 24px 64px rgba(2, 6, 23, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.editor-assistant__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.editor-assistant__title {
+  margin: 0.15rem 0 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #f8fbff;
+}
+
+.editor-assistant__history {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding-right: 0.2rem;
+}
+
+.editor-assistant__history::-webkit-scrollbar {
+  width: 10px;
+}
+
+.editor-assistant__history::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.editor-assistant__history::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  background-clip: padding-box;
+}
+
+.editor-assistant__empty {
+  margin: auto 0;
+  padding: 0.95rem 1rem;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(248, 251, 255, 0.64);
+  line-height: 1.55;
+}
+
+.editor-assistant__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+}
+
+.editor-assistant__input {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.82rem 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 1rem;
+  background: rgba(11, 16, 30, 0.88);
+  color: #f8fbff;
+  font: inherit;
+}
+
+.editor-assistant__input:focus {
+  outline: none;
+  border-color: rgba(125, 211, 252, 0.48);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
+}
+
+.editor-assistant-fab {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 63;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.9rem;
+  height: 3.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 122, 89, 0.2),
+    rgba(241, 71, 185, 0.14),
+    rgba(110, 203, 255, 0.12)
+  );
+  box-shadow:
+    0 20px 48px rgba(4, 8, 20, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: #f8fbff;
+  cursor: pointer;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.editor-assistant-fab:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.editor-assistant-fab:focus-visible {
+  outline: none;
+  box-shadow:
+    0 20px 48px rgba(4, 8, 20, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 3px rgba(125, 211, 252, 0.2);
+}
+
+.editor-assistant-fab svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
 .auth-shell,
 .dashboard-shell {
   position: fixed;
@@ -1549,6 +1697,18 @@ body.editor-app {
     width: auto;
     height: min(20rem, 34vh);
   }
+
+  .editor-assistant {
+    right: 1rem;
+    bottom: 5.9rem;
+    left: 1rem;
+    width: auto;
+  }
+
+  .editor-assistant-fab {
+    right: 1rem;
+    bottom: 1rem;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1599,6 +1759,18 @@ body.editor-app {
   .board-node--title {
     width: 15rem;
     max-width: 15rem;
+  }
+
+  .editor-assistant {
+    height: min(26rem, calc(100vh - 7rem));
+  }
+
+  .editor-assistant__form {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-assistant__form .editor-button {
+    width: 100%;
   }
 
   .auth-shell__panel,
