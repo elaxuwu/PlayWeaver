@@ -13,20 +13,22 @@ const VALID_CATEGORIES = [
 
 const SYSTEM_PROMPT = `You are an expert game design assistant embedded inside the PlayWeaver node-based editor.
 You must ONLY reply with valid JSON matching this exact schema and nothing else:
-{"reply":"Friendly message to the user","actions":[{"type":"ADD_NODE","label":"Dodging","category":"coreMechanic"},{"type":"REMOVE_NODE","label":"Node Text To Delete"},{"type":"EDIT_NODE","targetLabel":"Old Text","newLabel":"New Text"}]}
+{"reply":"Friendly message to the user","actions":[{"type":"ADD_NODE","label":"Dodging","category":"coreMechanic"},{"type":"REMOVE_NODE","label":"Node Text To Delete"},{"type":"EDIT_NODE","targetLabel":"Old Text","newLabel":"New Text"},{"type":"ADD_NOTE","text":"Specific instructions or bug fixes"}]}
 
 Rules:
 - "reply" must always be a friendly plain-text string.
 - "actions" must always be an array.
-- The only supported action types are "ADD_NODE", "REMOVE_NODE", and "EDIT_NODE".
+- The only supported action types are "ADD_NODE", "REMOVE_NODE", "EDIT_NODE", and "ADD_NOTE".
 - Valid categories for "ADD_NODE" are exactly: gameName, genre, coreMechanic, artStyle, setting, playerCharacter, enemies, winCondition.
 - Use "ADD_NODE" only when the user clearly wants the editor canvas changed.
 - Use "REMOVE_NODE" when the user wants a node deleted by label.
 - Use "EDIT_NODE" when the user wants an existing node label changed.
+- Use "ADD_NOTE" whenever the user asks for a specific code change, bug fix, balance tweak, stat tweak, or implementation reminder that does not fit cleanly into the main game categories.
 - If the user is only chatting or asking for advice without a canvas change, return an empty "actions" array.
 - Keep "label" short and suitable for a node label.
 - For "REMOVE_NODE", include only {"type":"REMOVE_NODE","label":"Exact or close node text"}.
 - For "EDIT_NODE", include only {"type":"EDIT_NODE","targetLabel":"Existing text","newLabel":"Updated text"}.
+- For "ADD_NOTE", include only {"type":"ADD_NOTE","text":"Specific instructions or bug fixes"}.
 - Never return markdown, code fences, or any text outside the JSON object.`;
 
 function jsonResponse(body, status = 200) {
@@ -121,6 +123,19 @@ function normalizeAction(action) {
     };
   }
 
+  if (action.type === "ADD_NOTE") {
+    const text = typeof action.text === "string" ? action.text.trim() : "";
+
+    if (!text) {
+      return null;
+    }
+
+    return {
+      type: "ADD_NOTE",
+      text,
+    };
+  }
+
   return null;
 }
 
@@ -150,7 +165,7 @@ function normalizeAssistantPayload(rawContent) {
 
 export async function onRequestPost(context) {
   try {
-    const { message, messageHistory } = await context.request.json();
+    const { message, messageHistory, gameConfig } = await context.request.json();
     const normalizedMessage = typeof message === "string" ? message.trim() : "";
 
     if (!normalizedMessage) {
@@ -165,6 +180,9 @@ export async function onRequestPost(context) {
       apiKey: context.env.FEATHERLESS_API_KEY,
       baseURL: "https://api.featherless.ai/v1",
     });
+    const currentGameConfig =
+      gameConfig && typeof gameConfig === "object" ? JSON.stringify(gameConfig, null, 2) : "{}";
+    const dynamicSystemPrompt = `${SYSTEM_PROMPT}\n\nThe current game configuration is:\n${currentGameConfig}\nUse this context to answer the user accurately.`;
 
     const completion = await client.chat.completions.create({
       model: "deepseek-ai/DeepSeek-V3-0324",
@@ -172,7 +190,7 @@ export async function onRequestPost(context) {
       messages: [
         {
           role: "system",
-          content: SYSTEM_PROMPT,
+          content: dynamicSystemPrompt,
         },
         ...normalizeMessageHistory(messageHistory),
         {

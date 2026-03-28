@@ -4,7 +4,7 @@ const SYSTEM_PROMPT =
   'You are an expert HTML5 game developer. Based on the provided JSON config, write a complete, playable 2D web game in a single HTML file using vanilla JavaScript and the HTML5 Canvas. It must be fully self-contained with inline CSS and JS. Output ONLY the raw HTML code. Do NOT wrap it in markdown blockquotes like ```html. CRITICAL: The canvas MUST dynamically resize to perfectly fit the window. Use `canvas.width = window.innerWidth` and `canvas.height = window.innerHeight` on load and on window resize. Do NOT hardcode fixed pixel dimensions for the canvas. If the game requires player movement, you MUST implement both WASD and the Arrow Keys for controls.';
 
 const INCREMENTAL_SYSTEM_PROMPT =
-  "You are an expert HTML5 game developer. You will be provided with the EXISTING working HTML game code and an UPDATED JSON game config. Your job is to modify the existing code to integrate the new requirements while preserving as much of the original working logic and styling as possible. Output ONLY the complete, raw, updated HTML code without markdown fences.";
+  "You are an expert HTML5 game developer. You will be provided with the EXISTING working HTML game code and an UPDATED JSON game config. Your job is to modify the existing code to integrate the new requirements while preserving as much of the original working logic and styling as possible. CRITICAL: Review the developerNotes array in the JSON config. These are granular bug fixes, stat tweaks, or overriding instructions from the user. You MUST implement these specific notes in your updated code. Output ONLY the complete, raw, updated HTML code without markdown fences.";
 
 function stripCodeFences(content) {
   return String(content || "")

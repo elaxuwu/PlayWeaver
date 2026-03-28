@@ -147,10 +147,13 @@
   }
 
   function getDefaultGameConfig() {
-    return FIELD_DEFINITIONS.reduce((config, field) => {
-      config[field.key] = field.key === "gameName" ? "Untitled Game" : "None";
-      return config;
+    const config = FIELD_DEFINITIONS.reduce((nextConfig, field) => {
+      nextConfig[field.key] = field.key === "gameName" ? "Untitled Game" : "None";
+      return nextConfig;
     }, {});
+
+    config.developerNotes = [];
+    return config;
   }
 
   function normalizeStoredValue(value, fallback) {
@@ -171,11 +174,18 @@
 
   function normalizeGameConfig(config) {
     const defaults = getDefaultGameConfig();
-
-    return FIELD_DEFINITIONS.reduce((normalized, field) => {
+    const normalizedConfig = FIELD_DEFINITIONS.reduce((normalized, field) => {
       normalized[field.key] = normalizeStoredValue(config?.[field.key], defaults[field.key]);
       return normalized;
     }, {});
+
+    normalizedConfig.developerNotes = Array.isArray(config?.developerNotes)
+      ? config.developerNotes
+          .map((note) => (typeof note === "string" ? note.trim() : ""))
+          .filter(Boolean)
+      : [];
+
+    return normalizedConfig;
   }
 
   function escapeHtml(value) {
@@ -355,9 +365,12 @@
       x: Number.isFinite(options.x) ? options.x : 0,
       y: Number.isFinite(options.y) ? options.y : 0,
       locked: Boolean(options.locked),
+      isNote: Boolean(options.isNote),
       colorId:
         typeof options.colorId === "string" && options.colorId
           ? options.colorId
+          : options.isNote
+            ? "gold"
           : DEFAULT_COLORS[kind],
     };
   }
@@ -490,6 +503,7 @@
           x,
           y,
           locked: Boolean(node.locked || kind === "field"),
+          isNote: Boolean(node.isNote),
           colorId: typeof node.colorId === "string" ? node.colorId : DEFAULT_COLORS[kind],
         };
       })
@@ -705,6 +719,19 @@
       .slice(-EDITOR_ASSISTANT_HISTORY_LIMIT);
   }
 
+  function getStickyNoteSpawnPosition() {
+    const { centerX, centerY } = getBoardMetrics();
+    const noteWidth = getNodeWidth({ kind: "note" });
+    const noteHeight = getNodeHeight({ kind: "note" });
+    const offsetX = (Math.random() - 0.5) * 240;
+    const offsetY = (Math.random() - 0.5) * 180;
+
+    return {
+      x: centerX - noteWidth / 2 + offsetX,
+      y: centerY - noteHeight / 2 + offsetY,
+    };
+  }
+
   function findAssistantCategoryNode(categoryKey) {
     if (categoryKey === "gameName") {
       return getNodeById("title");
@@ -759,6 +786,21 @@
       from: targetNode.id,
       to: nextNode.id,
     });
+    editorState.selectedNodeId = nextNode.id;
+    bringNodeToFront(nextNode.id);
+    return true;
+  }
+
+  function addAssistantNote(text) {
+    const position = getStickyNoteSpawnPosition();
+    const nextNode = createNode(text, "Node", {
+      x: position.x,
+      y: position.y,
+      colorId: "gold",
+      isNote: true,
+    });
+
+    editorState.nodes.push(nextNode);
     editorState.selectedNodeId = nextNode.id;
     bringNodeToFront(nextNode.id);
     return true;
@@ -843,6 +885,11 @@
         typeof action.newLabel === "string"
       ) {
         didChangeBoard = editAssistantNode(action.targetLabel, action.newLabel) || didChangeBoard;
+        return;
+      }
+
+      if (action?.type === "ADD_NOTE" && typeof action.text === "string") {
+        didChangeBoard = addAssistantNote(action.text) || didChangeBoard;
       }
     });
 
@@ -866,6 +913,7 @@
     }
 
     const messageHistory = buildEditorAssistantRequestHistory();
+    const currentGameConfig = buildGenerationPayload().gameConfig;
     editorAssistantInput.value = "";
     setEditorAssistantOpen(true);
     appendEditorAssistantMessage("user", message);
@@ -880,6 +928,7 @@
         body: JSON.stringify({
           message,
           messageHistory,
+          gameConfig: currentGameConfig,
         }),
       });
 
@@ -1037,6 +1086,11 @@
       gameConfig[field.key] = values.length ? values.join(", ") : "None";
     });
 
+    gameConfig.developerNotes = editorState.nodes
+      .filter((node) => node.isNote === true)
+      .map((node) => normalizeStoredValue(node.label, ""))
+      .filter(Boolean);
+
     return {
       gameConfig: normalizeGameConfig(gameConfig),
       boardState: {
@@ -1050,6 +1104,7 @@
           x: node.x,
           y: node.y,
           locked: Boolean(node.locked),
+          isNote: Boolean(node.isNote),
           colorId: node.colorId,
         })),
         links: links.map((link) => ({
@@ -1409,19 +1464,28 @@
   function renderNodes() {
     boardNodes.innerHTML = editorState.nodes
       .map((node, index) => {
-        const color = getColorToken(node.colorId, node.kind);
+        const color = node.isNote
+          ? getColorToken("gold", node.kind)
+          : getColorToken(node.colorId, node.kind);
         const position = nodeToScreenPosition(node);
         const selected = node.id === editorState.selectedNodeId;
         const classes = [
           "board-node",
           `board-node--${node.kind}`,
+          node.isNote ? "board-node--sticky-note" : "",
           selected ? "is-selected" : "",
           node.locked ? "is-locked" : "",
         ]
           .filter(Boolean)
           .join(" ");
         const kindLabel =
-          node.kind === "title" ? "Game Title" : node.kind === "field" ? "Category" : "Node";
+          node.isNote
+            ? "Developer Note"
+            : node.kind === "title"
+              ? "Game Title"
+              : node.kind === "field"
+                ? "Category"
+                : "Node";
         const labelAttributes = 'data-editable="false"';
 
         return `
