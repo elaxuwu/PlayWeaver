@@ -1,4 +1,4 @@
-# PlayWeaver (for LovHack S2 - 2026)
+# PlayWeaver
 
 PlayWeaver is an AI-assisted web app that turns a plain-language game idea into:
 1. A structured game design board
