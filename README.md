@@ -6,6 +6,7 @@ PlayWeaver is an AI-assisted web app that turns a plain-language game idea into:
 3. A generated playable HTML5 prototype
 
 ### **TEST IT HERE: https://playweaver.pages.dev/**
+### **DEVPOST SUBMISSION: https://devpost.com/software/playweaver**
 
 | **PlayWeaver Demo 2** - **Short version** | **PlayWeaver Demo 1** - **Full version** |
 | :---: | :---: |
