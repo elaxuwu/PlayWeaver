@@ -4,7 +4,8 @@ const USER_SESSIONS_KEY_PREFIX = "playweaver:user_sessions:";
 const SESSION_KEY_PREFIX = "playweaver:session:";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const PASSWORD_HASH_VERSION = 2;
-const PASSWORD_HASH_ITERATIONS = 310000;
+// Cloudflare Workers currently caps PBKDF2 at 100,000 iterations.
+const PASSWORD_HASH_ITERATIONS = 100000;
 const PASSWORD_SALT_BYTES = 16;
 const MIN_PASSWORD_LENGTH = 8;
 
