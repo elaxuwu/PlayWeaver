@@ -618,9 +618,15 @@
     };
   }
 
+  function getScopedStorageKey(baseKey, stateId = getStateIdFromUrl()) {
+    const normalizedStateId = typeof stateId === "string" ? stateId.trim() : "";
+    return normalizedStateId ? `${baseKey}:${normalizedStateId}` : baseKey;
+  }
+
   function loadInitialConfig() {
     try {
-      const rawConfig = localStorage.getItem(STORAGE_KEY);
+      const stateId = getStateIdFromUrl();
+      const rawConfig = localStorage.getItem(getScopedStorageKey(STORAGE_KEY, stateId));
 
       if (!rawConfig) {
         return getDefaultGameConfig();
@@ -635,7 +641,8 @@
 
   function loadBoardState(initialConfig) {
     try {
-      const rawBoardState = localStorage.getItem(EDITOR_STATE_KEY);
+      const stateId = getStateIdFromUrl();
+      const rawBoardState = localStorage.getItem(getScopedStorageKey(EDITOR_STATE_KEY, stateId));
 
       if (!rawBoardState) {
         return createInitialBoardState(initialConfig);
@@ -1488,8 +1495,15 @@
 
   function writeProjectStateToLocalStorage(boardState, gameConfig) {
     try {
-      localStorage.setItem(EDITOR_STATE_KEY, JSON.stringify(boardState));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(gameConfig));
+      const stateId = getStateIdFromUrl();
+      localStorage.setItem(getScopedStorageKey(EDITOR_STATE_KEY, stateId), JSON.stringify(boardState));
+      localStorage.setItem(getScopedStorageKey(STORAGE_KEY, stateId), JSON.stringify(gameConfig));
+
+      // Preserve the draft handoff used when entering the editor without an id.
+      if (!stateId) {
+        localStorage.setItem(EDITOR_STATE_KEY, JSON.stringify(boardState));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(gameConfig));
+      }
     } catch (error) {
       console.error("Failed to persist editor state:", error);
     }
@@ -1643,6 +1657,58 @@ window.GAME_ASSETS = (function () {
 </script>`;
   }
 
+  function buildSandboxCompatibilityBootstrapHtml() {
+    return `<script>
+(function () {
+  function createMemoryStorage() {
+    const store = new Map();
+
+    return {
+      clear() {
+        store.clear();
+      },
+      getItem(key) {
+        const normalizedKey = String(key);
+        return store.has(normalizedKey) ? store.get(normalizedKey) : null;
+      },
+      key(index) {
+        return Array.from(store.keys())[index] || null;
+      },
+      removeItem(key) {
+        store.delete(String(key));
+      },
+      setItem(key, value) {
+        store.set(String(key), String(value));
+      },
+      get length() {
+        return store.size;
+      },
+    };
+  }
+
+  function ensureStorage(name) {
+    try {
+      const storage = window[name];
+      const probeKey = "__playweaver_probe__";
+      storage.setItem(probeKey, "1");
+      storage.removeItem(probeKey);
+    } catch (error) {
+      Object.defineProperty(window, name, {
+        configurable: true,
+        enumerable: true,
+        value: createMemoryStorage(),
+        writable: false,
+      });
+    }
+  }
+
+  ensureStorage("localStorage");
+  ensureStorage("sessionStorage");
+  window.PLAYWEAVER_SANDBOX = true;
+})();
+</script>`;
+  }
+
   function injectGameAssetsIntoHtml(html) {
     const sourceHtml = typeof html === "string" ? html : "";
 
@@ -1650,7 +1716,7 @@ window.GAME_ASSETS = (function () {
       return "";
     }
 
-    const bootstrapHtml = buildGameAssetsBootstrapHtml();
+    const bootstrapHtml = `${buildSandboxCompatibilityBootstrapHtml()}\n${buildGameAssetsBootstrapHtml()}`;
     const doctypeMatch = sourceHtml.match(/^\s*<!doctype[^>]*>/i);
 
     if (!doctypeMatch) {
@@ -1720,7 +1786,7 @@ window.GAME_ASSETS = (function () {
     </style>
   </head>
   <body>
-    <iframe id="prototype-frame" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+    <iframe id="prototype-frame" sandbox="allow-scripts allow-pointer-lock" referrerpolicy="no-referrer"></iframe>
     <script>
       const prototypeFrame = document.getElementById("prototype-frame");
       prototypeFrame.srcdoc = ${serializedHtml};
