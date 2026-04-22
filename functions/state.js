@@ -7,6 +7,7 @@ function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
+      "Cache-Control": "no-store",
       "Content-Type": "application/json",
     },
   });
@@ -74,6 +75,11 @@ function buildUserProjectsKey(userId) {
   return `${USER_PROJECTS_KEY_PREFIX}${userId}`;
 }
 
+function normalizeSessionVersion(value, fallbackValue = 0) {
+  const parsedValue = Number(value);
+  return Number.isInteger(parsedValue) && parsedValue >= 0 ? parsedValue : fallbackValue;
+}
+
 function parseStoredObject(value) {
   if (typeof value !== "string" || !value) {
     return null;
@@ -87,39 +93,79 @@ function parseStoredObject(value) {
   }
 }
 
-async function resolveUserIdFromToken(context, token) {
-  const normalizedToken = typeof token === "string" ? token.trim() : "";
+function parseSessionRecord(value) {
+  const parsedRecord = parseStoredObject(value);
 
-  if (!normalizedToken) {
+  if (parsedRecord && typeof parsedRecord.userId === "string" && parsedRecord.userId.trim()) {
     return {
-      userId: null,
-      invalid: false,
-    };
-  }
-
-  const sessionResponse = await executeRedisCommand(context, ["GET", buildSessionKey(normalizedToken)]);
-  const userId = typeof sessionResponse?.result === "string" ? sessionResponse.result : "";
-
-  if (!userId) {
-    return {
-      userId: null,
-      invalid: true,
-    };
-  }
-
-  const userResponse = await executeRedisCommand(context, ["GET", buildUserIdKey(userId)]);
-  const userRecord = parseStoredObject(userResponse?.result);
-
-  if (!userRecord) {
-    return {
-      userId: null,
-      invalid: true,
+      sessionVersion: normalizeSessionVersion(parsedRecord.sessionVersion, 0),
+      userId: parsedRecord.userId.trim(),
     };
   }
 
   return {
-    userId,
-    invalid: false,
+    sessionVersion: 0,
+    userId: typeof value === "string" ? value.trim() : "",
+  };
+}
+
+function extractBearerToken(request) {
+  const authHeader = request.headers.get("Authorization");
+
+  if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) {
+    return "";
+  }
+
+  return authHeader.slice(7).trim();
+}
+
+async function resolveAuthenticatedUserId(context, request) {
+  const token = extractBearerToken(request);
+
+  if (!token) {
+    return {
+      error: "Please log in to save projects to the cloud.",
+      status: 401,
+      userId: "",
+    };
+  }
+
+  const sessionResponse = await executeRedisCommand(context, ["GET", buildSessionKey(token)]);
+  const sessionRecord = parseSessionRecord(sessionResponse?.result);
+
+  if (!sessionRecord.userId) {
+    return {
+      error: "Your session is no longer valid. Please log in again.",
+      status: 401,
+      userId: "",
+    };
+  }
+
+  const userResponse = await executeRedisCommand(context, ["GET", buildUserIdKey(sessionRecord.userId)]);
+  const userRecord = parseStoredObject(userResponse?.result);
+
+  if (!userRecord) {
+    return {
+      error: "Your session is no longer valid. Please log in again.",
+      status: 401,
+      userId: "",
+    };
+  }
+
+  const currentSessionVersion = normalizeSessionVersion(userRecord.sessionVersion, 0);
+
+  if (sessionRecord.sessionVersion !== currentSessionVersion) {
+    return {
+      error: "Your session is no longer valid. Please log in again.",
+      status: 401,
+      userId: "",
+    };
+  }
+
+  return {
+    error: "",
+    status: 200,
+    userId: sessionRecord.userId,
   };
 }
 
@@ -152,7 +198,7 @@ function buildProjectSummary(projectId, projectRecord) {
 
 export async function onRequestPost(context) {
   try {
-    const { id, html, editorState, gameConfig, token } = await context.request.json();
+    const { id, html, editorState, gameConfig } = await context.request.json();
     const safeId = normalizeId(id);
 
     if (!safeId) {
@@ -171,10 +217,10 @@ export async function onRequestPost(context) {
       return jsonResponse({ error: "gameConfig must be an object" }, 400);
     }
 
-    const session = await resolveUserIdFromToken(context, token);
+    const session = await resolveAuthenticatedUserId(context, context.request);
 
-    if (session.invalid) {
-      return jsonResponse({ error: "Your session is no longer valid. Please log in again." }, 401);
+    if (!session.userId) {
+      return jsonResponse({ error: session.error }, session.status);
     }
 
     const existingProject = await getStoredProject(context, safeId);
@@ -196,7 +242,7 @@ export async function onRequestPost(context) {
     }
 
     const now = new Date().toISOString();
-    const ownerId = existingOwnerId || session.userId || null;
+    const ownerId = existingOwnerId || session.userId;
     const nextProject = {
       id: safeId,
       html,
@@ -217,15 +263,12 @@ export async function onRequestPost(context) {
       buildStateKey(safeId),
       JSON.stringify(nextProject),
     ]);
-
-    if (ownerId) {
-      await executeRedisCommand(context, [
-        "HSET",
-        buildUserProjectsKey(ownerId),
-        safeId,
-        JSON.stringify(buildProjectSummary(safeId, nextProject)),
-      ]);
-    }
+    await executeRedisCommand(context, [
+      "HSET",
+      buildUserProjectsKey(ownerId),
+      safeId,
+      JSON.stringify(buildProjectSummary(safeId, nextProject)),
+    ]);
 
     return jsonResponse({
       ok: true,
@@ -274,11 +317,6 @@ export async function onRequestGet(context) {
         parsedState.gameConfig && typeof parsedState.gameConfig === "object"
           ? parsedState.gameConfig
           : null,
-      ownerId:
-        typeof parsedState.ownerId === "string" && parsedState.ownerId.trim()
-          ? parsedState.ownerId
-          : null,
-      pinned: Boolean(parsedState.pinned),
       updatedAt:
         typeof parsedState.updatedAt === "string" && parsedState.updatedAt.trim()
           ? parsedState.updatedAt

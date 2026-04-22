@@ -9,8 +9,9 @@
   const CLOUD_SYNC_DEBOUNCE_MS = 1500;
   const DEBUG_SEQUENCE = ["w", "w", "a", "a", "s", "s", "d", "d"];
   const EDITOR_ASSISTANT_HISTORY_LIMIT = 16;
-  const IMGBB_UPLOAD_URL =
-    "https://api.imgbb.com/1/upload?key=596395aee2e0bc5a29e84ce142ca1e61";
+  const AUTH_TOKEN_KEY = "playweaverToken";
+  const AUTH_USER_KEY = "playweaverUser";
+  const IMAGE_UPLOAD_ENDPOINT = "/image-upload";
   const BASE64_IMAGE_PATTERN = /data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=_-\s]+/gi;
   const GAME_ASSET_PLACEHOLDER_SRC =
     "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
@@ -710,8 +711,11 @@
   }
 
   function syncEditorAssistantControls() {
+    const hasAuthenticatedSession = Boolean(getSessionToken());
     const disableUpload =
-      editorState.assistantChatPending === true || editorState.assistantImageUploadPending === true;
+      editorState.assistantChatPending === true ||
+      editorState.assistantImageUploadPending === true ||
+      !hasAuthenticatedSession;
     const disableSend =
       editorState.assistantChatPending === true || editorState.assistantImageUploadPending === true;
 
@@ -721,6 +725,9 @@
 
     if (editorAssistantUpload) {
       editorAssistantUpload.disabled = disableUpload;
+      editorAssistantUpload.title = hasAuthenticatedSession
+        ? "Upload image"
+        : "Log in to upload reference images.";
     }
 
     if (editorAssistantSend) {
@@ -789,28 +796,42 @@
       return;
     }
 
+    const sessionToken = getSessionToken();
+
+    if (!sessionToken) {
+      clearPendingChatImage();
+      setGenerateStatus("Log in to upload reference images.");
+      return;
+    }
+
     editorState.pendingChatImage = null;
     editorState.pendingChatImageName = file.name;
     setAssistantImageUploadPending(true);
-    setGenerateStatus(`Uploading ${file.name} to ImgBB...`);
+    setGenerateStatus(`Uploading ${file.name} securely...`);
 
     const formData = new FormData();
     formData.append("image", file);
 
     try {
-      const response = await fetch(IMGBB_UPLOAD_URL, {
+      const response = await fetch(IMAGE_UPLOAD_ENDPOINT, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+        },
         body: formData,
       });
       const payload = await response.json();
-      const uploadedImageUrl =
-        typeof payload?.data?.url === "string" ? payload.data.url.trim() : "";
+      const uploadedImageUrl = typeof payload?.url === "string" ? payload.url.trim() : "";
 
       if (!response.ok || !uploadedImageUrl) {
+        if (response.status === 401) {
+          clearStoredSession();
+        }
+
         throw new Error(
-          typeof payload?.error?.message === "string" && payload.error.message.trim()
-            ? payload.error.message.trim()
-            : "ImgBB upload failed."
+          typeof payload?.error === "string" && payload.error.trim()
+            ? payload.error.trim()
+            : "Image upload failed."
         );
       }
 
@@ -1479,6 +1500,11 @@
       window.clearTimeout(cloudSyncTimeoutId);
     }
 
+    if (!getSessionToken()) {
+      cloudSyncTimeoutId = null;
+      return;
+    }
+
     cloudSyncTimeoutId = window.setTimeout(() => {
       syncStateToCloud().catch((error) => {
         console.error("Failed to sync project state to cloud:", error);
@@ -1658,14 +1684,68 @@ window.GAME_ASSETS = (function () {
     return injectGameAssetsIntoHtml(getCurrentGeneratedHtml());
   }
 
+  function escapeForInlineScript(value) {
+    return JSON.stringify(String(value || ""))
+      .replace(/</g, "\\u003c")
+      .replace(/>/g, "\\u003e")
+      .replace(/&/g, "\\u0026")
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029");
+  }
+
+  function createSandboxedPrototypeDocument(renderedHtml) {
+    const serializedHtml = escapeForInlineScript(renderedHtml);
+
+    return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PlayWeaver Prototype</title>
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #070b14;
+      }
+
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+        background: #070b14;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe id="prototype-frame" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+    <script>
+      const prototypeFrame = document.getElementById("prototype-frame");
+      prototypeFrame.srcdoc = ${serializedHtml};
+    </script>
+  </body>
+</html>`;
+  }
+
   function getSessionToken() {
-    return localStorage.getItem("playweaverToken") || "";
+    return localStorage.getItem(AUTH_TOKEN_KEY) || "";
+  }
+
+  function clearStoredSession() {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
+    syncEditorAssistantControls();
   }
 
   async function postStateToCloud(stateId, payload) {
+    const sessionToken = getSessionToken();
+
     return fetch("/state", {
       method: "POST",
       headers: {
+        Authorization: `Bearer ${sessionToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -1673,7 +1753,6 @@ window.GAME_ASSETS = (function () {
         html: getCurrentGeneratedHtml(),
         editorState: buildPersistedBoardState(payload.gameConfig),
         gameConfig: payload.gameConfig,
-        token: getSessionToken(),
       }),
     });
   }
@@ -1682,6 +1761,10 @@ window.GAME_ASSETS = (function () {
     if (cloudSyncTimeoutId) {
       window.clearTimeout(cloudSyncTimeoutId);
       cloudSyncTimeoutId = null;
+    }
+
+    if (!getSessionToken()) {
+      return "";
     }
 
     const payload = buildGenerationPayload();
@@ -1717,8 +1800,7 @@ window.GAME_ASSETS = (function () {
       const errorText = await response.text();
 
       if (response.status === 401) {
-        localStorage.removeItem("playweaverToken");
-        localStorage.removeItem("playweaverUser");
+        clearStoredSession();
       }
 
       throw new Error(getPrototypeErrorMessage(errorText, response.status));
@@ -2403,7 +2485,9 @@ window.GAME_ASSETS = (function () {
 
     clearPrototypeUrl();
 
-    const htmlBlob = new Blob([renderedHtml], { type: "text/html" });
+    const htmlBlob = new Blob([createSandboxedPrototypeDocument(renderedHtml)], {
+      type: "text/html",
+    });
     const prototypeUrl = URL.createObjectURL(htmlBlob);
     editorState.currentPrototypeUrl = prototypeUrl;
     const openedWindow = window.open(prototypeUrl, "_blank", "noopener,noreferrer");
@@ -2521,17 +2605,22 @@ window.GAME_ASSETS = (function () {
       persistBoardState();
       clearDeveloperNotesAfterGeneration();
 
+      const hadAuthenticatedSession = Boolean(getSessionToken());
       let saveError = null;
 
-      try {
-        await syncStateToCloud();
-      } catch (error) {
-        saveError = error;
-        console.error("Failed to sync generated project state:", error);
+      if (hadAuthenticatedSession) {
+        try {
+          await syncStateToCloud();
+        } catch (error) {
+          saveError = error;
+          console.error("Failed to sync generated project state:", error);
+        }
       }
 
       setGenerateStatus(
-        saveError instanceof Error && saveError.message
+        !hadAuthenticatedSession
+          ? "Prototype ready locally. Log in to save it to the cloud and share it."
+          : saveError instanceof Error && saveError.message
           ? `Prototype ready, but cloud sync failed: ${saveError.message}`
           : "Prototype ready. Only linked nodes were sent to generation and the full project was synced."
       );

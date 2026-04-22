@@ -41,6 +41,7 @@ PlayWeaver is an AI-assisted web app that turns a plain-language game idea into:
 |  |- chat.js
 |  |- editor-chat.js
 |  |- generate.js
+|  |- image-upload.js
 |  |- state.js
 |  \- api/
 |     \- dashboard.js
@@ -72,6 +73,7 @@ Set these in Cloudflare Pages project settings, or in a local `.dev.vars` file f
 | `UPSTASH_REDIS_REST_TOKEN` | Yes | Upstash Redis REST auth token |
 | `OPENAI_PROXY_BASE_URL` | Yes | OpenAI-compatible base URL used by `functions/generate.js` |
 | `OPENAI_PROXY_API_KEY` | Usually | Proxy API key (can be optional if proxy handles auth internally) |
+| `IMGBB_API_KEY` | Yes for image upload | Server-side ImgBB key used by `functions/image-upload.js` |
 
 Example `.dev.vars`:
 
@@ -81,6 +83,7 @@ UPSTASH_REDIS_REST_URL=https://your-upstash-url.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your_upstash_token_here
 OPENAI_PROXY_BASE_URL=https://your-proxy.workers.dev/v1
 OPENAI_PROXY_API_KEY=your_proxy_key_here
+IMGBB_API_KEY=your_imgbb_key_here
 ```
 
 Never commit `.dev.vars`.
@@ -132,6 +135,10 @@ Returns JSON actions for editor updates:
 
 Generates complete playable HTML based on game config, and can incrementally update existing HTML.
 
+### `POST /image-upload`
+
+Uploads assistant reference images through a server-side proxy so third-party API keys are not exposed in client code.
+
 ### `GET /state?id=...`
 
 Loads a stored project state.
@@ -163,10 +170,12 @@ Deletes a project owned by the authenticated user.
 
 - Session token is stored client-side in `localStorage`.
 - Session validity and ownership are enforced server-side in functions.
+- Cloud save/share and assistant image uploads now require a logged-in session.
 - Redis key namespaces include:
 	- `playweaver:user:*`
 	- `playweaver:user_id:*`
 	- `playweaver:session:*`
+	- `playweaver:user_sessions:*`
 	- `playweaver:state:*`
 	- `playweaver:user_projects:*`
 

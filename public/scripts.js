@@ -190,8 +190,20 @@ function updateLiveBoard(boardState = {}) {
 
   liveBoardFields.forEach((field) => {
     const val = snapshot[field.key] || "None";
-    const cardHtml = `<div class="board-card flex flex-col p-3 rounded-xl bg-white/5 border border-white/10 overflow-hidden"><span class="text-white/50 text-[10px] uppercase tracking-wider mb-1">${field.label}</span><span class="text-white font-medium text-sm capitalize truncate">${val}</span></div>`;
-    boardGrid.insertAdjacentHTML("beforeend", cardHtml);
+    const card = document.createElement("div");
+    card.className =
+      "board-card flex flex-col p-3 rounded-xl bg-white/5 border border-white/10 overflow-hidden";
+
+    const labelNode = document.createElement("span");
+    labelNode.className = "text-white/50 text-[10px] uppercase tracking-wider mb-1";
+    labelNode.textContent = field.label;
+
+    const valueNode = document.createElement("span");
+    valueNode.className = "text-white font-medium text-sm capitalize truncate";
+    valueNode.textContent = val;
+
+    card.append(labelNode, valueNode);
+    boardGrid.appendChild(card);
   });
 
   return snapshot;

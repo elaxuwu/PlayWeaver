@@ -60,15 +60,11 @@ function buildShareUrl(projectId) {
   return url.toString();
 }
 
-function buildDashboardApiUrl(projectId = "", token = getToken()) {
+function buildDashboardApiUrl(projectId = "") {
   const url = new URL("/api/dashboard", window.location.origin);
 
   if (projectId) {
     url.searchParams.set("id", projectId);
-  }
-
-  if (token) {
-    url.searchParams.set("token", token);
   }
 
   return url.toString();
@@ -174,7 +170,7 @@ async function fetchProjects() {
     return;
   }
 
-  const apiUrl = buildDashboardApiUrl("", token);
+  const apiUrl = buildDashboardApiUrl();
   const response = await fetch(apiUrl, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -205,7 +201,7 @@ async function togglePinned(projectId) {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ id: projectId, token }),
+    body: JSON.stringify({ id: projectId }),
   });
 
   if (response.status === 401) {
@@ -221,7 +217,7 @@ async function togglePinned(projectId) {
 
 async function deleteProject(projectId) {
   const token = getToken();
-  const response = await fetch(buildDashboardApiUrl(projectId, token), {
+  const response = await fetch(buildDashboardApiUrl(projectId), {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${token}`,

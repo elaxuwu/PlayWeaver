@@ -7,6 +7,7 @@ function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
+      "Cache-Control": "no-store",
       "Content-Type": "application/json",
     },
   });
@@ -74,6 +75,11 @@ function normalizeId(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normalizeSessionVersion(value, fallbackValue = 0) {
+  const parsedValue = Number(value);
+  return Number.isInteger(parsedValue) && parsedValue >= 0 ? parsedValue : fallbackValue;
+}
+
 function parseStoredObject(value) {
   if (typeof value !== "string" || !value) {
     return null;
@@ -87,51 +93,62 @@ function parseStoredObject(value) {
   }
 }
 
-function extractToken(request, fallbackValue = "") {
+function parseSessionRecord(value) {
+  const parsedRecord = parseStoredObject(value);
+
+  if (parsedRecord && typeof parsedRecord.userId === "string" && parsedRecord.userId.trim()) {
+    return {
+      sessionVersion: normalizeSessionVersion(parsedRecord.sessionVersion, 0),
+      userId: parsedRecord.userId.trim(),
+    };
+  }
+
+  return {
+    sessionVersion: 0,
+    userId: typeof value === "string" ? value.trim() : "",
+  };
+}
+
+function extractToken(request) {
   const authHeader = request.headers.get("Authorization");
 
   if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
     return authHeader.slice(7).trim();
   }
 
-  try {
-    const requestUrl = new URL(request.url);
-    const queryToken = requestUrl.searchParams.get("token");
-
-    if (typeof queryToken === "string" && queryToken.trim()) {
-      return queryToken.trim();
-    }
-  } catch (error) {
-    console.error("Failed to read dashboard token from URL:", error);
-  }
-
-  return typeof fallbackValue === "string" ? fallbackValue.trim() : "";
+  return "";
 }
 
-async function resolveSession(context, request, fallbackToken = "") {
-  const token = extractToken(request, fallbackToken);
+async function resolveSession(context, request) {
+  const token = extractToken(request);
 
   if (!token) {
     return null;
   }
 
   const sessionResponse = await executeRedisCommand(context, ["GET", buildSessionKey(token)]);
-  const userId = typeof sessionResponse?.result === "string" ? sessionResponse.result : "";
+  const sessionRecord = parseSessionRecord(sessionResponse?.result);
 
-  if (!userId) {
+  if (!sessionRecord.userId) {
     return null;
   }
 
-  const userResponse = await executeRedisCommand(context, ["GET", buildUserIdKey(userId)]);
+  const userResponse = await executeRedisCommand(context, ["GET", buildUserIdKey(sessionRecord.userId)]);
   const userRecord = parseStoredObject(userResponse?.result);
 
   if (!userRecord) {
     return null;
   }
 
+  const currentSessionVersion = normalizeSessionVersion(userRecord.sessionVersion, 0);
+
+  if (sessionRecord.sessionVersion !== currentSessionVersion) {
+    return null;
+  }
+
   return {
     token,
-    userId,
+    userId: sessionRecord.userId,
     user: {
       id: userRecord.id,
       email: userRecord.email,
@@ -278,7 +295,7 @@ export async function onRequestPatch(context) {
   try {
     const payload = await context.request.json();
     const projectId = normalizeId(payload?.id);
-    const session = await resolveSession(context, context.request, payload?.token);
+    const session = await resolveSession(context, context.request);
 
     if (!session) {
       return jsonResponse({ error: "Please log in to update a project." }, 401);

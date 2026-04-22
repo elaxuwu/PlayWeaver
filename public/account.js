@@ -10,6 +10,11 @@ function clearSession() {
   localStorage.removeItem(AUTH_USER_KEY);
 }
 
+function storeSession(token, user) {
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user || null));
+}
+
 function getToken() {
   return localStorage.getItem(AUTH_TOKEN_KEY) || "";
 }
@@ -53,11 +58,11 @@ async function handleChangePassword(event) {
   const response = await fetch("/auth", {
     method: "POST",
     headers: {
+      Authorization: `Bearer ${getToken()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       action: "change_password",
-      token: getToken(),
       oldPassword: document.getElementById("account-old-password")?.value || "",
       newPassword: document.getElementById("account-new-password")?.value || "",
       newPasswordConfirm: document.getElementById("account-new-password-confirm")?.value || "",
@@ -72,6 +77,12 @@ async function handleChangePassword(event) {
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response, "Unable to change your password."));
+  }
+
+  const payload = await response.json();
+
+  if (typeof payload?.token === "string" && payload.token.trim()) {
+    storeSession(payload.token, payload.user);
   }
 
   if (changePasswordForm) {
