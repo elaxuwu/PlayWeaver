@@ -108,7 +108,7 @@ Create `.dev.vars` at project root (see example above).
 ### 3. Run Cloudflare Pages Functions locally
 
 ```bash
-npx wrangler pages dev public --functions functions
+npx wrangler pages dev public
 ```
 
 Then open the local URL shown by Wrangler (commonly `http://localhost:8788`).
