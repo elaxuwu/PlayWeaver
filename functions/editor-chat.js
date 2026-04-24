@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { createChatCompletionWithFallback } from "./ai-chat-provider.js";
 
 const VALID_CATEGORIES = [
   "gameName",
@@ -190,20 +190,12 @@ export async function onRequestPost(context) {
       return jsonResponse({ error: "message is required" }, 400);
     }
 
-    if (!context.env.FEATHERLESS_API_KEY) {
-      throw new Error("Missing FEATHERLESS_API_KEY environment variable");
-    }
-
-    const client = new OpenAI({
-      apiKey: context.env.FEATHERLESS_API_KEY,
-      baseURL: "https://api.featherless.ai/v1",
-    });
     const currentGameConfig =
       gameConfig && typeof gameConfig === "object" ? JSON.stringify(gameConfig, null, 2) : "{}";
     const dynamicSystemPrompt = `${SYSTEM_PROMPT}\n\nThe current game configuration is:\n${currentGameConfig}\nUse this context to answer the user accurately.`;
 
-    const completion = await client.chat.completions.create({
-      model: "deepseek-ai/DeepSeek-V3-0324",
+    const assistantReply = await createChatCompletionWithFallback({
+      context,
       temperature: 0.2,
       messages: [
         {
@@ -217,8 +209,6 @@ export async function onRequestPost(context) {
         },
       ],
     });
-
-    const assistantReply = completion.choices?.[0]?.message?.content?.trim() || "";
 
     if (!assistantReply) {
       throw new Error("Editor chat model returned an empty response.");

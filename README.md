@@ -29,6 +29,7 @@ PlayWeaver is an AI-assisted web app that turns a plain-language game idea into:
 - Backend: Cloudflare Pages Functions
 - AI providers:
 	- **[Featherless.ai](https://featherless.ai/)** (for creation chat + editor assistant)
+	- **[Ollama Cloud](https://ollama.com/)** (fallback for creation chat + editor assistant)
 	- OpenAI-compatible proxy endpoint (for prototype generation)
 - Data store: Upstash Redis REST API
 
@@ -68,7 +69,9 @@ Set these in Cloudflare Pages project settings, or in a local `.dev.vars` file f
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `FEATHERLESS_API_KEY` | Yes | Used by `functions/chat.js` and `functions/editor-chat.js` |
+| `FEATHERLESS_API_KEY` | Preferred primary | Primary provider for `functions/chat.js` and `functions/editor-chat.js` |
+| `OLLAMA_API_KEY` | Optional fallback | Ollama Cloud fallback for `functions/chat.js` and `functions/editor-chat.js` |
+| `OLLAMA_CLOUD_MODEL` | Optional fallback | Defaults to `mistral-large-3:675b-cloud` for the Ollama Cloud fallback |
 | `UPSTASH_REDIS_REST_URL` | Yes | Upstash Redis REST endpoint |
 | `UPSTASH_REDIS_REST_TOKEN` | Yes | Upstash Redis REST auth token |
 | `OPENAI_PROXY_BASE_URL` | Yes | OpenAI-compatible base URL used by `functions/generate.js` |
@@ -79,6 +82,8 @@ Example `.dev.vars`:
 
 ```env
 FEATHERLESS_API_KEY=your_featherless_key_here
+OLLAMA_API_KEY=your_ollama_api_key_here
+OLLAMA_CLOUD_MODEL=mistral-large-3:675b-cloud
 UPSTASH_REDIS_REST_URL=https://your-upstash-url.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your_upstash_token_here
 OPENAI_PROXY_BASE_URL=https://your-proxy.workers.dev/v1

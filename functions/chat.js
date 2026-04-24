@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { createChatCompletionWithFallback } from "./ai-chat-provider.js";
 
 const BOARD_FIELDS = [
   "gameName",
@@ -203,15 +203,6 @@ function normalizeAssistantReply(rawReply) {
 
 export async function onRequestPost(context) {
   try {
-    if (!context.env.FEATHERLESS_API_KEY) {
-      throw new Error("Missing FEATHERLESS_API_KEY environment variable");
-    }
-
-    const client = new OpenAI({
-      apiKey: context.env.FEATHERLESS_API_KEY,
-      baseURL: "https://api.featherless.ai/v1",
-    });
-
     const { messageHistory } = await context.request.json();
 
     if (!Array.isArray(messageHistory)) {
@@ -227,9 +218,9 @@ export async function onRequestPost(context) {
     const missingFields = BOARD_FIELDS.filter((field) => lastKnownBoardState[field] === "None");
     const dynamicSystemPrompt = `${SYSTEM_PROMPT}\n\nCRITICAL STATE UPDATE: The following fields are currently missing: [${missingFields.join(", ")}]. You MUST ask about the FIRST missing field in this list. DO NOT ask about any other fields.`;
 
-    const completion = await client.chat.completions.create({
-      model: "deepseek-ai/DeepSeek-V3-0324",
-      response_format: { type: "json_object" },
+    const assistantReply = await createChatCompletionWithFallback({
+      context,
+      responseFormat: { type: "json_object" },
       messages: [
         { role: "system", content: dynamicSystemPrompt },
         ...messageHistory.map((message) => ({
@@ -241,8 +232,6 @@ export async function onRequestPost(context) {
         })),
       ],
     });
-
-    const assistantReply = completion.choices?.[0]?.message?.content?.trim() || "";
 
     if (!assistantReply) {
       throw new Error("Chat model returned an empty response.");
