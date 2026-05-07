@@ -1,14 +1,24 @@
+import {
+  buildRateLimitHeaders,
+  consumeFixedWindowRateLimit,
+  formatRetryAfter,
+} from "./rate-limit.js";
+
 const STATE_KEY_PREFIX = "playweaver:state:";
 const USER_ID_KEY_PREFIX = "playweaver:user_id:";
 const SESSION_KEY_PREFIX = "playweaver:session:";
 const USER_PROJECTS_KEY_PREFIX = "playweaver:user_projects:";
+const PROJECT_CREATE_RATE_LIMIT_KEY_PREFIX = "playweaver:project_create_rate_limit:";
+const PROJECT_CREATE_RATE_LIMIT = 5;
+const PROJECT_CREATE_RATE_LIMIT_WINDOW_SECONDS = 60 * 60;
 
-function jsonResponse(body, status = 200) {
+function jsonResponse(body, status = 200, headers = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       "Cache-Control": "no-store",
       "Content-Type": "application/json",
+      ...headers,
     },
   });
 }
@@ -196,6 +206,31 @@ function buildProjectSummary(projectId, projectRecord) {
   };
 }
 
+async function consumeProjectCreateRateLimit(context, userId) {
+  const rateLimit = await consumeFixedWindowRateLimit({
+    context,
+    key: `${PROJECT_CREATE_RATE_LIMIT_KEY_PREFIX}user:${userId}`,
+    limit: PROJECT_CREATE_RATE_LIMIT,
+    windowSeconds: PROJECT_CREATE_RATE_LIMIT_WINDOW_SECONDS,
+  });
+
+  if (rateLimit.allowed) {
+    return null;
+  }
+
+  return jsonResponse(
+    {
+      error: `You can create up to ${PROJECT_CREATE_RATE_LIMIT} projects per hour. Please try again in ${formatRetryAfter(rateLimit.retryAfterSeconds)}.`,
+      code: "rate_limited",
+      limit: rateLimit.limit,
+      remaining: rateLimit.remaining,
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+    },
+    429,
+    buildRateLimitHeaders(rateLimit)
+  );
+}
+
 export async function onRequestPost(context) {
   try {
     const { id, html, editorState, gameConfig } = await context.request.json();
@@ -239,6 +274,14 @@ export async function onRequestPost(context) {
         },
         409
       );
+    }
+
+    if (!existingProject) {
+      const rateLimitResponse = await consumeProjectCreateRateLimit(context, session.userId);
+
+      if (rateLimitResponse) {
+        return rateLimitResponse;
+      }
     }
 
     const now = new Date().toISOString();

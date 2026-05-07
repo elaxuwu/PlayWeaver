@@ -2650,11 +2650,18 @@ window.GAME_ASSETS = (function () {
     );
 
     try {
+      const sessionToken = getSessionToken();
+      const headers = {
+        "Content-Type": "application/json",
+      };
+
+      if (sessionToken) {
+        headers.Authorization = `Bearer ${sessionToken}`;
+      }
+
       const response = await fetch("/generate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           gameConfig: payload.gameConfig,
           currentHtml: sanitizedCurrentHtml,

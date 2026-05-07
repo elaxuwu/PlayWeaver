@@ -1,6 +1,15 @@
 import OpenAI from "openai";
+import {
+  buildRateLimitHeaders,
+  consumeFixedWindowRateLimit,
+  formatRetryAfter,
+  resolveProjectRateLimitSubject,
+} from "./rate-limit.js";
 
 const BASE64_IMAGE_PATTERN = /data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=_-\s]+/gi;
+const PROJECT_GENERATION_RATE_LIMIT_KEY_PREFIX = "playweaver:project_generation_rate_limit:";
+const PROJECT_GENERATION_RATE_LIMIT = 5;
+const PROJECT_GENERATION_RATE_LIMIT_WINDOW_SECONDS = 60 * 60;
 
 const SYSTEM_PROMPT =
   'You are an expert HTML5 game developer. Based on the provided JSON config, write a complete, playable 2D web game in a single HTML file using vanilla JavaScript and the HTML5 Canvas. It must be fully self-contained with inline CSS and JS. Output ONLY the raw HTML code. Do NOT wrap it in markdown blockquotes like ```html. CRITICAL: The canvas MUST dynamically resize to perfectly fit the window. Use `canvas.width = window.innerWidth` and `canvas.height = window.innerHeight` on load and on window resize. Do NOT hardcode fixed pixel dimensions for the canvas. If the game requires player movement, you MUST implement both WASD and the Arrow Keys for controls. NEVER output raw Base64 data strings. Instead, assume a global object GAME_ASSETS exists. Use GAME_ASSETS.playerCharacter or GAME_ASSETS.enemies as your image sources (e.g., ctx.drawImage(GAME_ASSETS.playerCharacter, x, y)). CRITICAL IMAGE HANDLING: If the user provides an uploaded image and asks you to create a "pixel art", "sprite", or "custom" version of it, DO NOT render the raw photo using ctx.drawImage(GAME_ASSETS...). You must act as a procedural pixel artist. You MUST manually design a 16x16 or 32x32 pixel matrix (using a 2D array of hex color codes) that mimics the distinct visual features of the provided image (e.g., hair color, clothing, accessories). Then, write a custom render function that loops through this array and draws the sprite pixel-by-pixel using ctx.fillRect(). The GAME_ASSETS variable should only be used if the user explicitly wants the raw, unchanged photo inserted.';
@@ -75,17 +84,58 @@ function buildVisionUserContent(textPrompt, imageAssets) {
   return content;
 }
 
+function jsonResponse(body, status = 200, headers = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+  });
+}
+
+async function consumeProjectGenerationRateLimit(context) {
+  const subject = await resolveProjectRateLimitSubject(context, context.request);
+  const rateLimit = await consumeFixedWindowRateLimit({
+    context,
+    key: `${PROJECT_GENERATION_RATE_LIMIT_KEY_PREFIX}${subject}`,
+    limit: PROJECT_GENERATION_RATE_LIMIT,
+    windowSeconds: PROJECT_GENERATION_RATE_LIMIT_WINDOW_SECONDS,
+  });
+
+  if (rateLimit.allowed) {
+    return null;
+  }
+
+  return jsonResponse(
+    {
+      error: `You can create up to ${PROJECT_GENERATION_RATE_LIMIT} projects per hour. Please try again in ${formatRetryAfter(rateLimit.retryAfterSeconds)}.`,
+      code: "rate_limited",
+      limit: rateLimit.limit,
+      remaining: rateLimit.remaining,
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+    },
+    429,
+    buildRateLimitHeaders(rateLimit)
+  );
+}
+
 export async function onRequestPost(context) {
   try {
     const { gameConfig, currentHtml } = await context.request.json();
 
     if (!gameConfig || typeof gameConfig !== "object") {
-      return new Response(JSON.stringify({ error: "gameConfig must be an object" }), {
-        status: 400,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      return jsonResponse({ error: "gameConfig must be an object" }, 400);
+    }
+
+    const isNewProjectGeneration = !(typeof currentHtml === "string" && currentHtml.trim());
+
+    if (isNewProjectGeneration) {
+      const rateLimitResponse = await consumeProjectGenerationRateLimit(context);
+
+      if (rateLimitResponse) {
+        return rateLimitResponse;
+      }
     }
 
     if (!context.env.OPENAI_PROXY_BASE_URL) {
